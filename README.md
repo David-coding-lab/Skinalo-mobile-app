@@ -36,6 +36,29 @@ The feature set is categorized to distinguish between the core utility and the e
 
 ---
 
+## ✨ Skinalo Elite: Premium Skin Coaching
+
+Elevate your skincare journey with **Skinalo Elite**, a boutique experience designed for those who seek expert-led results and professional-grade skin coaching. Move beyond simple ingredient analysis into a realm of clinical precision and personalized care.
+
+### 💎 Exclusive Features: "Beautify"
+
+*   **Personalized Roadmaps:** Access structured, outcome-driven skincare protocols such as *Clear Dark Spots*, *Lighten Up*, or *Smoothing*. These are not static plans; they are dynamically calibrated based on your unique skin profile, local humidity, and real-time environmental UV indexes.
+*   **Dynamic Routine Calibration:** Your skin is alive and ever-changing. If you report a localized breakout or sudden sensitivity, the "Beautify" engine automatically modifies your daily routine, ensuring you use the right ingredients at the precise moment your skin needs them most.
+*   **The Progress Tracker:** Transform your journey into a visual narrative. Elite users gain access to the **Timeline View**, a sophisticated logging system that tracks milestones and visual improvements, turning daily consistency into a data-driven progress chart.
+
+### 📊 Free vs. Elite Comparison
+
+| Feature | Skinalo Free | Skinalo Elite |
+| :--- | :---: | :---: |
+| **Ingredient Analysis** | Unlimited Scans | Unlimited Scans |
+| **Safety Alerts** | Basic Irritants | Advanced Chemical Conflicts |
+| **Personalized Roadmaps** | ❌ | ✅ (Outcome-Driven) |
+| **Dynamic Calibration** | ❌ | ✅ (Real-time adjustments) |
+| **Progress Tracker** | ❌ | ✅ (Timeline & Milestone logs) |
+| **Expert Coaching** | ❌ | ✅ (Clinical-grade guidance) |
+
+---
+
 ## 🛠️ Technical Stack (Current)
 
 *   **Frontend:** React Native (Cross-platform iOS/Android)
