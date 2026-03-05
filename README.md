@@ -6,7 +6,7 @@ Skinalo is a smart skincare companion designed to demystify complex ingredient l
 
 ## 🚀 Features Roadmap
 
-The feature set is categorized to distinguish between the core utility and the expanded ecosystem for families and local commerce.
+The feature set is categorized to distinguish between the core utility and the expanded ecosystem for families and local commerce. For a detailed breakdown and progress tracking, see [FEATURES.md](FEATURES.md).
 
 ### 🛡️ Core & MVP (Minimum Viable Product)
 *   **Instant Label Scanner:** High-accuracy OCR to extract ingredient lists from product packaging or gallery images.
