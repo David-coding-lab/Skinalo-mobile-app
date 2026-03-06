@@ -59,6 +59,35 @@ Elevate your skincare journey with **Skinalo Elite**, a boutique experience desi
 
 ---
 
+## 🏗️ Feature Incubation & Consideration
+
+As Skinalo evolves, we are exploring new ways to deepen the relationship between users and their skincare collections. The following concepts represent our strategic roadmap for future ecosystem expansion.
+
+### 🧪 AloWear: The Digital Vanity
+**Concept:** A persistent, logic-driven library that serves as the command center for a user's skincare journey.
+
+*   **Digital Shelf:** A synchronized library of a user's current products, automatically updated based on their scan history.
+*   **Active Routine Sync:** Users can toggle products between 'AM' and 'PM' slots to build a visual, time-of-day daily schedule.
+*   **Cross-Product Conflict Engine:** A sophisticated logic layer that proactively warns if a newly scanned product will clash with ingredients already sitting on the user's active 'AloWear' shelf.
+
+#### ⚖️ Strategic Considerations (TBD)
+*   **Monetization & Access:** Evaluating a "Freemium Shelf" model where a base number of slots (e.g., up to 5 products) is free, while "Unlimited Slots" or "Expiry Date Tracking" becomes a hallmark of **Skinalo Elite**.
+*   **Automation vs. Intent:** Determining the optimal balance between convenience and control—should products be auto-added if the Match Score is >80%, or should the 'AloWear' shelf remain a strictly manual, high-intent action?
+*   **Community Benchmarking:** Investigating the value of "Anonymized AloWear Shelves," allowing users to gain inspiration from the curated routines of others with matching skin profiles.
+
+### 📸 Ghost Scan: Integration Strategy
+**Concept:** A camera-based AI assistant designed to extract active ingredients (Retinol, Vitamin C, AHA/BHA, Benzoyl Peroxide) directly from a user's product bottle during the 'Profile Setup' or 'AloWear Shelf' creation.
+
+#### ⚖️ Strategic Decisions (Pending)
+*   **Onboarding Integration:** Evaluating if 'Ghost Scan' belongs in the Profile Setup Flow (e.g., Step 5: Active Conflicts). 
+    *   **Pros:** Captures high-fidelity data early in the user lifecycle.
+    *   **Cons:** Risk of onboarding fatigue or dropout due to technical scan friction.
+*   **Fallback Strategy:** Should a scan fail, we must decide between a mandatory "Manual Select" grid for continuity or allowing users to skip and finish later in the 'AloWear' section.
+*   **The "Truth Threshold":** Given the safety implications, we must define a certainty metric. If AI confidence is <90%, should the system force manual manual verification or reject the scan entirely to prevent ingredient misinformation?
+*   **Resource Balancing:** Determining if the increased token cost of using **Gemini 3 Flash** for vision-based OCR during onboarding is justified by the resulting data accuracy and safety profile.
+
+---
+
 ## 🛠️ Technical Stack (Current)
 
 *   **Frontend:** React Native (Cross-platform iOS/Android)
