@@ -31,8 +31,25 @@ The feature set is categorized to distinguish between the core utility and the e
 
 ### 📍 Local Ecosystem (Shop Section)
 *   **Geo-Located Recommendations:** Based on the user's GPS, Skinalo suggests nearby verified cosmetic stores that stock the analyzed "safe" products.
+*   **Market-Aware Recommendation Engine:** A hyper-local logic layer that limits AI suggestions to brands and products physically available in the user's specific region (e.g., Nigeria, USA, China), eliminating "geographic hallucinations."
 *   **Partner Integration:** A portal for local cosmetic retailers to sign up, list their inventory, and offer exclusive discounts to Skinalo users.
 *   **Authenticity Verification:** Helping users find authorized distributors to avoid counterfeit products in local markets.
+
+---
+
+## 🏗️ System Architecture & Logic
+
+### 🧠 Market-Aware Recommendation Engine
+To provide high-relevance, accessible product alternatives, Skinalo employs a "Brand-Matrix" logic. This architecture ensures every recommendation is something the user can actually purchase at their local pharmacy or supermarket.
+
+#### **Mechanism & Workflow**
+1.  **Geo-Trigger:** The system identifies the user's country/region from their profile settings.
+2.  **Brand Fetching:** It retrieves a "Regional Brand List"—a curated collection of 100+ verified brands popular and available in that specific territory (e.g., *Nivea, Simple, Arami, CeraVe* for Nigeria).
+3.  **AI Constraint Reasoning:** The **Gemini 3 Flash** engine uses this list as a strict boundary. It evaluates the user's skin needs and recommends specific, high-performing products *only* from those verified companies.
+
+#### **Technical Stack**
+*   **Database:** Appwrite `RegionalBrands` collection.
+*   **Inference:** Gemini 3 Flash (leveraging internal knowledge of global brand catalogs under regional constraints).
 
 ---
 
