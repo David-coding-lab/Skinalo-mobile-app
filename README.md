@@ -6,7 +6,7 @@ Skinalo is a smart skincare companion designed to demystify complex ingredient l
 
 ## 🚀 Features Roadmap
 
-The feature set is categorized to distinguish between the core utility and the expanded ecosystem for families and local commerce. For a detailed breakdown and progress tracking, see [FEATURES.md](FEATURES.md).
+The feature set is categorized to distinguish between the core utility and the expanded ecosystem for local commerce. For a detailed breakdown and progress tracking, see [FEATURES.md](FEATURES.md).
 
 ### 🛡️ Core & MVP (Minimum Viable Product)
 *   **Instant Label Scanner:** High-accuracy OCR to extract ingredient lists from product packaging or gallery images.
@@ -24,12 +24,7 @@ The feature set is categorized to distinguish between the core utility and the e
 *   **The Progress Board (Future Feature):** A visual tracking system. Users take weekly photos; after 30 days, the app generates a high-format "Before & After" report with data overlays showing improvements in skin texture or tone.
 *   **Advanced Lab Reports:** Deep-dive PDF exports of routine compatibility and long-term skin health forecasts.
 
-### 👨‍👩‍👧‍👦 Family & Relationship Plan
-*   **Multi-Profile Management:** Create and manage sub-profiles for family members (spouse, children, partner).
-*   **Age-Specific Recommendations:** Tailored product suggestions for different life stages (e.g., gentle baby-safe ingredients vs. adult active serums).
-*   **Unified Shopping List:** A generated list of recommended products for the entire household to ensure everyone maintains healthy, fresh skin.
-
-### 📍 Local Ecosystem (Shop Section)
+###  Local Ecosystem (Shop Section)
 *   **Geo-Located Recommendations:** Based on the user's GPS, Skinalo suggests nearby verified cosmetic stores that stock the analyzed "safe" products.
 *   **Market-Aware Recommendation Engine:** A hyper-local logic layer that limits AI suggestions to brands and products physically available in the user's specific region (e.g., Nigeria, USA, China), eliminating "geographic hallucinations."
 *   **Partner Integration:** A portal for local cosmetic retailers to sign up, list their inventory, and offer exclusive discounts to Skinalo users.
