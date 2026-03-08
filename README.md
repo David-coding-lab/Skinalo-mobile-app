@@ -1,103 +1,64 @@
 # Skinalo: Intelligent Skincare Ingredient Analysis
 
-Skinalo is a smart skincare companion designed to demystify complex ingredient lists. By leveraging AI-driven analysis, it helps users understand exactly what they are putting on their skin, ensuring their routine matches their specific skin type and environmental conditions.
+Skinalo is a premium, clinical-grade skincare companion designed to demystify complex ingredients, identify chemical conflicts, and provide AI-driven adaptive roadmaps for personalized skin health.
 
 ---
 
-## 🚀 Features Roadmap
+## 🛡️ The Core Feature (MVP): AloWear (The Regimen Harmonizer)
 
-The feature set is categorized to distinguish between the core utility and the expanded ecosystem for families and local commerce. For a detailed breakdown and progress tracking, see [FEATURES.md](FEATURES.md).
+**AloWear** is a live, logic-driven library that serves as the command center for your skincare journey. By digitizing your "vanity shelf," the AI runs a sophisticated cross-product conflict engine to identify chemical clashes and ingredient overlaps.
 
-### 🛡️ Core & MVP (Minimum Viable Product)
-*   **Instant Label Scanner:** High-accuracy OCR to extract ingredient lists from product packaging or gallery images.
-*   **Ingredient Breakdown:** Detailed analysis of each chemical component, highlighting its purpose (e.g., humectant, occlusive, active).
-*   **Safety & Compatibility Check:** Real-time alerts for potential irritants based on the user's specific skin profile (e.g., sensitivity to Lemon Peel Oil or Kojic Acid).
-*   **Sun Sensitivity Alerts:** Automatic warnings for ingredients that increase photosensitivity, with mandatory sunscreen reminders.
-
-### 🔓 Free Tier
-*   **Single Product Analysis:** Unlimited scans for individual skincare items.
-*   **Basic Skin Profile:** Storage for primary skin type (Dry, Oily, Combination) and top concerns.
-*   **Ingredient Dictionary:** A searchable library explaining common skincare chemicals in plain language.
-
-### 💎 Paid / Premium Tier
-*   **Holistic Routine Audit:** A "Whole Shelf" analysis where users scan their entire collection. Skinalo analyzes how products interact—identifying "ingredient overlaps" (using too much of one active) or "chemical conflicts" (mixing ingredients that cancel each other out or cause irritation).
-*   **The Progress Board (Future Feature):** A visual tracking system. Users take weekly photos; after 30 days, the app generates a high-format "Before & After" report with data overlays showing improvements in skin texture or tone.
-*   **Advanced Lab Reports:** Deep-dive PDF exports of routine compatibility and long-term skin health forecasts.
-
-### 👨‍👩‍👧‍👦 Family & Relationship Plan
-*   **Multi-Profile Management:** Create and manage sub-profiles for family members (spouse, children, partner).
-*   **Age-Specific Recommendations:** Tailored product suggestions for different life stages (e.g., gentle baby-safe ingredients vs. adult active serums).
-*   **Unified Shopping List:** A generated list of recommended products for the entire household to ensure everyone maintains healthy, fresh skin.
-
-### 📍 Local Ecosystem (Shop Section)
-*   **Geo-Located Recommendations:** Based on the user's GPS, Skinalo suggests nearby verified cosmetic stores that stock the analyzed "safe" products.
-*   **Market-Aware Recommendation Engine:** A hyper-local logic layer that limits AI suggestions to brands and products physically available in the user's specific region (e.g., Nigeria, USA, China), eliminating "geographic hallucinations."
-*   **Partner Integration:** A portal for local cosmetic retailers to sign up, list their inventory, and offer exclusive discounts to Skinalo users.
-*   **Authenticity Verification:** Helping users find authorized distributors to avoid counterfeit products in local markets.
+*   **Digital Shelf:** A synchronized library of your current products, automatically updated based on scan history.
+*   **Conflict Engine:** Proactively identifies if mixing products will cause irritation or cancel out active ingredients.
+*   **Core CTA:** [Analyze Compatibility] — Get an instant safety report for your entire routine.
 
 ---
 
-## 🏗️ System Architecture & Logic
+## 💎 Skinalo Elite: The Premium Ecosystem
 
-### 🧠 Market-Aware Recommendation Engine
-To provide high-relevance, accessible product alternatives, Skinalo employs a "Brand-Matrix" logic. This architecture ensures every recommendation is something the user can actually purchase at their local pharmacy or supermarket.
+Elevate your journey with **Skinalo Elite**, a boutique experience featuring **Beautify: Your AI Skin Coach**. This clinical protocol engine dynamically calibrates your routine based on real-world data and biological cycles.
 
-#### **Mechanism & Workflow**
-1.  **Geo-Trigger:** The system identifies the user's country/region from their profile settings.
-2.  **Brand Fetching:** It retrieves a "Regional Brand List"—a curated collection of 100+ verified brands popular and available in that specific territory (e.g., *Nivea, Simple, Arami, CeraVe* for Nigeria).
-3.  **AI Constraint Reasoning:** The **Gemini 3 Flash** engine uses this list as a strict boundary. It evaluates the user's skin needs and recommends specific, high-performing products *only* from those verified companies.
+### ✨ Key Elite Features
 
-#### **Technical Stack**
-*   **Database:** Appwrite `RegionalBrands` collection.
-*   **Inference:** Gemini 3 Flash (leveraging internal knowledge of global brand catalogs under regional constraints).
-
----
-
-## ✨ Skinalo Elite: Premium Skin Coaching
-
-Elevate your skincare journey with **Skinalo Elite**, a boutique experience designed for those who seek expert-led results and professional-grade skin coaching. Move beyond simple ingredient analysis into a realm of clinical precision and personalized care.
-
-### 💎 Exclusive Features: "Beautify"
-
-*   **Personalized Roadmaps:** Access structured, outcome-driven skincare protocols such as *Clear Dark Spots*, *Lighten Up*, or *Smoothing*. These are not static plans; they are dynamically calibrated based on your unique skin profile, local humidity, and real-time environmental UV indexes.
-*   **Dynamic Routine Calibration:** Your skin is alive and ever-changing. If you report a localized breakout or sudden sensitivity, the "Beautify" engine automatically modifies your daily routine, ensuring you use the right ingredients at the precise moment your skin needs them most.
-*   **The Progress Tracker:** Transform your journey into a visual narrative. Elite users gain access to the **Timeline View**, a sophisticated logging system that tracks milestones and visual improvements, turning daily consistency into a data-driven progress chart.
+*   **28-Day Clinical Protocols:** Outcome-driven roadmaps (e.g., "Texture Refinement," "Barrier Repair") that adapt to your progress.
+*   **Dynamic Calibration:** Routines adjust weekly based on AI-vision photo snaps, local humidity levels, and skin turnover cycles.
+*   **Progress Board:** A data-driven milestone tracking system to visualize improvements in skin health over time.
+*   **Community Loop:** A curated social ecosystem for Elite users to share 'Before & After' transformations. Viewers can click **'Start a Plan'** on any post to instantly adopt the exact protocol that achieved those results.
 
 ### 📊 Free vs. Elite Comparison
 
 | Feature | Skinalo Free | Skinalo Elite |
 | :--- | :---: | :---: |
 | **Ingredient Analysis** | Unlimited Scans | Unlimited Scans |
-| **Safety Alerts** | Basic Irritants | Advanced Chemical Conflicts |
-| **Personalized Roadmaps** | ❌ | ✅ (Outcome-Driven) |
-| **Dynamic Calibration** | ❌ | ✅ (Real-time adjustments) |
-| **Progress Tracker** | ❌ | ✅ (Timeline & Milestone logs) |
-| **Expert Coaching** | ❌ | ✅ (Clinical-grade guidance) |
+| **AloWear Digital Shelf** | Search & Library | Full Conflict Engine |
+| **AI Skin Coach (Beautify)** | ❌ | ✅ (Clinical Roadmaps) |
+| **Dynamic Calibration** | ❌ | ✅ (Humidity & Vision-based) |
+| **Progress Board** | ❌ | ✅ (Milestone Tracking) |
+| **Social Community Loop** | View Only | ✅ (Share & Adopt Plans) |
 
 ---
 
-## 🏗️ Feature Incubation & Consideration
+## 📍 Local Ecosystem: Market-Aware Recommendation Engine
 
-As Skinalo evolves, we are exploring new ways to deepen the relationship between users and their skincare collections. The following concepts represent our strategic roadmap for future ecosystem expansion.
+To ensure accessibility, Skinalo employs a "Brand-Matrix" database combined with geo-location. This architecture ensures every product recommendation is physically available in your specific region (e.g., Nigeria, USA), eliminating frustration with unavailable products.
 
-### 🧪 AloWear: The Digital Vanity
-**Concept:** A persistent, logic-driven library that serves as the command center for a user's skincare journey.
+1.  **Geo-Awareness:** Identifies your region to filter the global product database.
+2.  **Verified Brand-Matrix:** Cross-references recommendations against a database of brands with a verified physical presence in your market.
+3.  **Authenticity Focus:** Connects users with authorized distributors to ensure product integrity.
 
-*   **Digital Shelf:** A synchronized library of a user's current products, automatically updated based on their scan history.
-*   **Active Routine Sync:** Users can toggle products between 'AM' and 'PM' slots to build a visual, time-of-day daily schedule.
-*   **Cross-Product Conflict Engine:** A sophisticated logic layer that proactively warns if a newly scanned product will clash with ingredients already sitting on the user's active 'AloWear' shelf.
+---
 
-#### ⚖️ Strategic Considerations (TBD)
-*   **Monetization & Access:** Evaluating a "Freemium Shelf" model where a base number of slots (e.g., up to 5 products) is free, while "Unlimited Slots" or "Expiry Date Tracking" becomes a hallmark of **Skinalo Elite**.
-*   **Automation vs. Intent:** Determining the optimal balance between convenience and control—should products be auto-added if the Match Score is >80%, or should the 'AloWear' shelf remain a strictly manual, high-intent action?
-*   **Community Benchmarking:** Investigating the value of "Anonymized AloWear Shelves," allowing users to gain inspiration from the curated routines of others with matching skin profiles.
+## 🏗️ Technical Stack
 
-### 📸 Ghost Scan: Integration Strategy
-**Concept:** A camera-based AI assistant designed to extract active ingredients (Retinol, Vitamin C, AHA/BHA, Benzoyl Peroxide) directly from a user's product bottle during the 'Profile Setup' or 'AloWear Shelf' creation.
+*   **Frontend:** React Native
+*   **Backend:** Appwrite (Database, Auth, Storage)
+*   **AI Engine:** Gemini 3 Flash (Reasoning, OCR, and Visual Progress Analysis)
 
-#### ⚖️ Strategic Decisions (Pending)
-*   **Onboarding Integration:** Evaluating if 'Ghost Scan' belongs in the Profile Setup Flow (e.g., Step 5: Active Conflicts). 
-    *   **Pros:** Captures high-fidelity data early in the user lifecycle.
+---
+
+## ⚖️ Tone & Philosophy
+
+Skinalo maintains a **clinical, authoritative, sophisticated, and transparent** tone. We focus exclusively on the individual, one-to-one relationship between the user and their AI Skin Coach, ensuring personalized precision for every skin type.
     *   **Cons:** Risk of onboarding fatigue or dropout due to technical scan friction.
 *   **Fallback Strategy:** Should a scan fail, we must decide between a mandatory "Manual Select" grid for continuity or allowing users to skip and finish later in the 'AloWear' section.
 *   **The "Truth Threshold":** Given the safety implications, we must define a certainty metric. If AI confidence is <90%, should the system force manual manual verification or reject the scan entirely to prevent ingredient misinformation?
