@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -29,21 +30,23 @@ const Welcome = () => {
           AI-powered ingredient analysis tailored to your unique skin profile.
         </Text>
 
-        <TouchableOpacity className="mt-auto mb-5 w-full max-w-96 h-20 items-center justify-center rounded-full bg-primary">
+        <TouchableOpacity
+          onPress={() => router.push("./sign-up")}
+          className="mt-auto mb-5 w-full max-w-96 h-20 items-center justify-center rounded-full bg-primary"
+        >
           <Text className="color-white font-latoSemiBold text-lg">
             Get started
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity className="mb-5 gap-0 flex-row justify-center">
+        <TouchableOpacity
+          onPress={() => router.push("./sign-in")}
+          className="mb-5 gap-0 flex-row justify-center"
+        >
           <Text className="text-textGray text-lg">
             Already have an account?{" "}
           </Text>
-          <TouchableOpacity>
-            <Text className="text-primary font-latoSemiBold text-lg">
-              Login
-            </Text>
-          </TouchableOpacity>
+          <Text className="text-primary font-latoSemiBold text-lg">Login</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
