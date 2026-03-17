@@ -47,7 +47,11 @@ export default function RootLayout() {
     // Implement logic to check if the user is opening the app for the first time
     try {
       const isFirstTimeUser = await AsyncStorage.getItem("isFirstTimeUser");
-      return isFirstTimeUser === null ? true : false; // If null, it's the first time
+      if (isFirstTimeUser === null) {
+        return true;
+      } else if (isFirstTimeUser === "false") {
+        return false;
+      }
     } catch (error) {
       console.error("Error checking first time user:", error);
       return true;

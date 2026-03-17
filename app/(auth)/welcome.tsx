@@ -1,3 +1,4 @@
+import PrimaryButton from "@/components/PrimaryButton";
 import { router } from "expo-router";
 import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
@@ -30,14 +31,11 @@ const Welcome = () => {
           AI-powered ingredient analysis tailored to your unique skin profile.
         </Text>
 
-        <TouchableOpacity
-          onPress={() => router.push("./sign-up")}
-          className="mt-auto mb-5 w-full max-w-96 h-20 items-center justify-center rounded-full bg-primary"
-        >
-          <Text className="color-white font-latoSemiBold text-lg">
-            Get started
-          </Text>
-        </TouchableOpacity>
+        <PrimaryButton
+          callBack={() => null}
+          route="sign-up"
+          text="Get started"
+        />
 
         <TouchableOpacity
           onPress={() => router.push("./sign-in")}
