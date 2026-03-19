@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AuthProvider from "@/context/AuthProvider";
 import { useFonts } from "expo-font";
-import { router, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import "./global.css";
@@ -22,20 +22,13 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        const isFirstTimeUser = await checkFirstTimeUser();
-
         if (loaded || error) {
           await SplashScreen.hideAsync();
-
-          if (isFirstTimeUser) {
-            router.push("/(auth)/welcome");
-          }
         }
       } catch (error) {
         console.warn("Error preparing app:", error);
       }
     }
-
     prepare();
   }, [loaded, error]);
 
@@ -43,24 +36,11 @@ export default function RootLayout() {
     return null;
   }
 
-  const checkFirstTimeUser = async () => {
-    // Implement logic to check if the user is opening the app for the first time
-    try {
-      const isFirstTimeUser = await AsyncStorage.getItem("isFirstTimeUser");
-      if (isFirstTimeUser === null) {
-        return true;
-      } else if (isFirstTimeUser === "false") {
-        return false;
-      }
-    } catch (error) {
-      console.error("Error checking first time user:", error);
-      return true;
-    }
-  };
-
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-    </Stack>
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+      </Stack>
+    </AuthProvider>
   );
 }
