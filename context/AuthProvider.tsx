@@ -20,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
+  const [appLoading, setAppLoading] = useState(true);
   const [user, setUser] = useState<Models.User<Models.Preferences> | null>(
     null,
   );
@@ -73,10 +74,11 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const response = await account.get();
         setUser(response);
         setError(null);
-      } catch (error) {
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);
+        setAppLoading(false);
       }
     };
 
@@ -84,7 +86,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (loading || isFirstTimeUser === null) return;
+    if (appLoading || isFirstTimeUser === null) return;
 
     const timeout = setTimeout(() => {
       if (!user) {
@@ -99,7 +101,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, 10);
 
     return () => clearTimeout(timeout);
-  }, [user, loading, isFirstTimeUser]);
+  }, [user, appLoading, isFirstTimeUser]);
 
   return (
     <AuthContext.Provider
@@ -114,7 +116,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsFirstTimeUser,
       }}
     >
-      {loading || isFirstTimeUser === null ? (
+      {appLoading || isFirstTimeUser === null ? (
         <ActivityIndicator
           size="large"
           color="#2D6A4F"

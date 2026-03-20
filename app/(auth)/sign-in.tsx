@@ -1,8 +1,10 @@
 import PrimaryButton from "@/components/PrimaryButton";
 import { useAuth } from "@/context/AuthProvider";
+import { zodResolver } from "@hookform/resolvers/zod";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   Image,
   Keyboard,
@@ -16,11 +18,27 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { z } from "zod";
+
+const signInSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+});
 
 const SignIn = () => {
-  const { login } = useAuth();
+  const { login, loading } = useAuth();
   const [error, setError] = useState<Error | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  type FormData = z.infer<typeof signInSchema>;
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(signInSchema),
+  });
 
   useEffect(() => {
     const markNotFirstTimeUser = async () => {
@@ -52,16 +70,13 @@ const SignIn = () => {
     };
   }, []);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleSignIn = () => {
+  const handleSignIn = (data: FormData) => {
     try {
       setError(null);
-      login(email, password);
+      login(data.email, data.password);
+      router.replace("./index");
     } catch (error) {
       console.error("Error during sign in:", error);
-      // setError(error);
     }
   };
 
@@ -116,32 +131,54 @@ const SignIn = () => {
                 <Text className="font-publicSansMedium text-lg mt-4">
                   Email
                 </Text>
-                <TextInput
-                  placeholder="name@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                  className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="name@example.com"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                    />
+                  )}
                 />
-
+                {errors.email && (
+                  <Text className="text-red-500">{errors.email.message}</Text>
+                )}
                 <Text className="font-publicSansMedium text-lg mt-4">
                   Password
                 </Text>
-                <TextInput
-                  placeholder="Enter your password"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                  className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="Enter your password"
+                      secureTextEntry
+                      onBlur={onBlur}
+                      value={value}
+                      onChangeText={onChange}
+                      className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                    />
+                  )}
                 />
+                {errors.password && (
+                  <Text className="text-red-500">
+                    {errors.password.message}
+                  </Text>
+                )}
               </View>
 
               <View className="w-full items-center justify-center">
                 <PrimaryButton
-                  callBack={handleSignIn}
+                  callBack={handleSubmit(handleSignIn)}
                   route=""
                   text="Sign in"
+                  hasLoading={loading}
                 />
 
                 <View className="flex-row justify-center items-center mt-4">

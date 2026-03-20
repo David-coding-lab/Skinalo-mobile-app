@@ -1,6 +1,14 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
-import { ActivityIndicator, Text, TouchableOpacity } from "react-native";
+import React, { useEffect } from "react";
+import { Text, TouchableOpacity } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 
 const PrimaryButton = (props: {
   route?: string;
@@ -9,6 +17,26 @@ const PrimaryButton = (props: {
   hasLoading?: boolean;
 }) => {
   const { route, text, callBack, hasLoading } = props;
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    if (hasLoading) {
+      rotation.value = withRepeat(
+        withTiming(1, { duration: 1000, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      rotation.value = 0;
+    }
+  }, [hasLoading, rotation]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value * 360}deg` }],
+    };
+  });
+
   return (
     <TouchableOpacity
       disabled={hasLoading}
@@ -19,10 +47,14 @@ const PrimaryButton = (props: {
           callBack();
         }
       }}
-      className={`mt-auto mb-5 w-full max-w-[85vw] h-16 items-center justify-center rounded-full bg-primary ${hasLoading ? "opacity-70" : ""}`}
+      className={`mt-auto mb-5 w-full max-w-[85vw] h-16 items-center justify-center rounded-full bg-primary ${
+        hasLoading ? "opacity-70" : ""
+      }`}
     >
       {hasLoading ? (
-        <ActivityIndicator size="small" color="#FFFFFF" />
+        <Animated.View style={animatedStyle}>
+          <MaterialCommunityIcons name="loading" size={24} color="white" />
+        </Animated.View>
       ) : (
         <Text className="text-white font-publicSansMedium text-lg">{text}</Text>
       )}
