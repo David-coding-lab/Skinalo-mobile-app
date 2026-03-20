@@ -1,22 +1,25 @@
 import PrimaryButton from "@/components/PrimaryButton";
+import { useAuth } from "@/context/AuthProvider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const SignIn = () => {
+  const { login } = useAuth();
+  const [error, setError] = useState<Error | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -49,7 +52,18 @@ const SignIn = () => {
     };
   }, []);
 
-  const handleSignIn = () => {};
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSignIn = () => {
+    try {
+      setError(null);
+      login(email, password);
+    } catch (error) {
+      console.error("Error during sign in:", error);
+      // setError(error);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-pageBg">
@@ -106,6 +120,8 @@ const SignIn = () => {
                   placeholder="name@example.com"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
                   className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
                 />
 
@@ -115,6 +131,8 @@ const SignIn = () => {
                 <TextInput
                   placeholder="Enter your password"
                   secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
                   className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
                 />
               </View>

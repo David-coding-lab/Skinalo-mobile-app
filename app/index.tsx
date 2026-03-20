@@ -1,10 +1,23 @@
-import { Text } from "@react-navigation/elements";
+import { useAuth } from "@/context/AuthProvider";
+import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
+  const { user, loading } = useAuth();
+
+  // Guard to prevent any rendering of the home content while we are still loading/redirecting
+  if (loading || !user) return null;
+
   return (
-    <SafeAreaView>
-      <Text>Welcome to Skinalo!</Text>
+    <SafeAreaView className="flex-1 bg-pageBg">
+      <View className="flex-1 items-center justify-center">
+        <Text className="text-2xl font-bold font-publicSansBold text-textDark">
+          Welcome back,
+        </Text>
+        <Text className="text-xl font-medium font-publicSansMedium text-primary mt-2">
+          {user.name}
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
