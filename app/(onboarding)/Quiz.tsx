@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  BackHandler,
   FlatList,
   Modal,
   ScrollView,
@@ -107,12 +108,29 @@ const Quiz = () => {
       const prevStep = step - 1;
       setStep(prevStep);
       saveProgress(prevStep, formData);
+      return true; // We handled the back button
     } else if (step === 1) {
-      return;
+      router.replace("/welcome");
+      return true;
     } else {
       router.back();
+      return true;
     }
   };
+
+  // Handle hardware back button
+  useEffect(() => {
+    const onBackPress = () => {
+      return handleBack();
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [step, formData]);
 
   const toggleIngredient = (ingredient: string) => {
     setFormData((prev) => {
