@@ -1,9 +1,9 @@
 import { useAuth } from "@/context/AuthProvider";
-import { Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
 
   // Guard to prevent any rendering of the home content while we are still loading/redirecting
   if (loading || !user) return null;
@@ -17,6 +17,12 @@ export default function Index() {
         <Text className="text-xl font-medium font-publicSansMedium text-primary mt-2">
           {user.name}
         </Text>
+
+        <TouchableOpacity onPressIn={() => logout()}>
+          <Text className="text-base font-publicSansMedium text-primary mt-4">
+            Logout
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

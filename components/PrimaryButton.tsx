@@ -15,8 +15,9 @@ const PrimaryButton = (props: {
   text: string;
   callBack?: () => void;
   hasLoading?: boolean;
+  disabled?: boolean;
 }) => {
-  const { route, text, callBack, hasLoading } = props;
+  const { route, text, callBack, hasLoading, disabled } = props;
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -39,9 +40,9 @@ const PrimaryButton = (props: {
 
   return (
     <TouchableOpacity
-      disabled={hasLoading}
+      disabled={hasLoading || disabled}
       onPress={() => {
-        if (route) {
+        if (route && route.length > 0) {
           router.push(`./${route}`);
         } else if (callBack) {
           callBack();

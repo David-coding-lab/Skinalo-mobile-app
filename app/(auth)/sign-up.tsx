@@ -1,38 +1,46 @@
 import PrimaryButton from "@/components/PrimaryButton";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/context/AuthProvider";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { z } from "zod";
+
+const signUpSchema = z.object({
+  name: z.string().min(3, "Name must be at least 3 characters long"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+});
 
 const SignUp = () => {
+  const { register, loading } = useAuth();
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
+  type FormData = z.infer<typeof signUpSchema>;
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(signUpSchema),
+  });
+
   useEffect(() => {
-    const markNotFirstTimeUser = async () => {
-      try {
-        const firstTimeUser = await AsyncStorage.getItem("isFirstTimeUser");
-        if (firstTimeUser) {
-          await AsyncStorage.setItem("isFirstTimeUser", "false");
-        }
-      } catch (error) {
-        console.error("Error removing first time user flag:", error);
-      }
-    };
-
-    markNotFirstTimeUser();
-
     // Listen for keyboard show/hide events
     const showSubscription = Keyboard.addListener(
       Platform.OS === "android" ? "keyboardDidShow" : "keyboardWillShow",
@@ -49,7 +57,24 @@ const SignUp = () => {
     };
   }, []);
 
-  const handleSignUp = () => {};
+  const handleSignUp = async (data: FormData) => {
+    try {
+      setErrorStatus(null);
+      await register(data.email, data.password, data.name);
+    } catch (error: any) {
+      console.error("Error during sign up:", error);
+
+      if (error.code === 409) {
+        setErrorStatus("This email is already registered.");
+      } else if (error.code === 0 || error.message?.includes("Network")) {
+        setErrorStatus("Network error. Please check your internet connection.");
+      } else if (error.code >= 500) {
+        setErrorStatus("Server error. Skin care is on hold, try again later!");
+      } else {
+        setErrorStatus("An unexpected error occurred. Please try again.");
+      }
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-pageBg">
@@ -100,37 +125,82 @@ const SignUp = () => {
               <View
                 className={`w-full mb-12 ${isKeyboardVisible ? "mt-5" : "mt-10"}`}
               >
+                {errorStatus && (
+                  <View className="w-full bg-red-50 border border-red-200 p-4 rounded-xl mb-4 flex-row items-center">
+                    <Text className="text-red-700 font-publicSansMedium flex-1">
+                      {errorStatus}
+                    </Text>
+                  </View>
+                )}
                 <Text className="font-publicSansMedium text-lg">Full Name</Text>
-                <TextInput
-                  placeholder="Enter your full name"
-                  className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                <Controller
+                  control={control}
+                  name="name"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="Enter your full name"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                    />
+                  )}
                 />
+                {errors.name && (
+                  <Text className="text-red-500">{errors.name.message}</Text>
+                )}
 
                 <Text className="font-publicSansMedium text-lg mt-4">
                   Email
                 </Text>
-                <TextInput
-                  placeholder="name@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="name@example.com"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                    />
+                  )}
                 />
+                {errors.email && (
+                  <Text className="text-red-500">{errors.email.message}</Text>
+                )}
 
                 <Text className="font-publicSansMedium text-lg mt-4">
                   Password
                 </Text>
-                <TextInput
-                  placeholder="Enter your password"
-                  secureTextEntry
-                  className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      placeholder="Enter your password"
+                      secureTextEntry
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      className="w-full h-16 rounded-lg font-latoRegular bg-white px-4 mt-2 border border-gray-100"
+                    />
+                  )}
                 />
+                {errors.password && (
+                  <Text className="text-red-500">
+                    {errors.password.message}
+                  </Text>
+                )}
               </View>
 
               <View className="w-full items-center justify-center">
                 <PrimaryButton
-                  callBack={handleSignUp}
-                  route=""
+                  callBack={handleSubmit(handleSignUp)}
                   text="Sign up"
+                  hasLoading={loading}
                 />
 
                 <View className="flex-row justify-center items-center mt-4">

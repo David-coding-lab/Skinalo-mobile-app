@@ -1,7 +1,6 @@
 import PrimaryButton from "@/components/PrimaryButton";
 import { useAuth } from "@/context/AuthProvider";
 import { zodResolver } from "@hookform/resolvers/zod";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -27,7 +26,7 @@ const signInSchema = z.object({
 
 const SignIn = () => {
   const { login, loading } = useAuth();
-  const [error, setError] = useState<Error | null>(null);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   type FormData = z.infer<typeof signInSchema>;
@@ -41,19 +40,6 @@ const SignIn = () => {
   });
 
   useEffect(() => {
-    const markNotFirstTimeUser = async () => {
-      try {
-        const firstTimeUser = await AsyncStorage.getItem("isFirstTimeUser");
-        if (firstTimeUser) {
-          await AsyncStorage.setItem("isFirstTimeUser", "false");
-        }
-      } catch (error) {
-        console.error("Error removing first time user flag:", error);
-      }
-    };
-
-    markNotFirstTimeUser();
-
     // Listen for keyboard show/hide events
     const showSubscription = Keyboard.addListener(
       Platform.OS === "android" ? "keyboardDidShow" : "keyboardWillShow",
@@ -70,13 +56,22 @@ const SignIn = () => {
     };
   }, []);
 
-  const handleSignIn = (data: FormData) => {
+  const handleSignIn = async (data: FormData) => {
     try {
-      setError(null);
-      login(data.email, data.password);
-      router.replace("./index");
-    } catch (error) {
+      setErrorStatus(null);
+      await login(data.email, data.password);
+    } catch (error: any) {
       console.error("Error during sign in:", error);
+
+      if (error.code === 401 || error.code === 403) {
+        setErrorStatus("Invalid email or password. Please try again.");
+      } else if (error.code === 0 || error.message?.includes("Network")) {
+        setErrorStatus("Network error. Please check your internet connection.");
+      } else if (error.code >= 500) {
+        setErrorStatus("Server error. Please try again later!");
+      } else {
+        setErrorStatus("An unexpected error occurred. Please try again.");
+      }
     }
   };
 
@@ -128,6 +123,13 @@ const SignIn = () => {
               <View
                 className={`w-full mb-12 ${isKeyboardVisible ? "mt-5" : "mt-10"}`}
               >
+                {errorStatus && (
+                  <View className="w-full bg-red-50 border border-red-200 p-4 rounded-xl mb-4 flex-row items-center">
+                    <Text className="text-red-700 font-publicSansMedium flex-1">
+                      {errorStatus}
+                    </Text>
+                  </View>
+                )}
                 <Text className="font-publicSansMedium text-lg mt-4">
                   Email
                 </Text>
@@ -176,7 +178,6 @@ const SignIn = () => {
               <View className="w-full items-center justify-center">
                 <PrimaryButton
                   callBack={handleSubmit(handleSignIn)}
-                  route=""
                   text="Sign in"
                   hasLoading={loading}
                 />
