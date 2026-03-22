@@ -3,10 +3,12 @@ import { account } from "@/libs/appwrite";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   BackHandler,
   FlatList,
+  Image,
+  ImageSourcePropType,
   Modal,
   ScrollView,
   Text,
@@ -22,6 +24,10 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAgeModalVisible, setIsAgeModalVisible] = useState(false);
+
+  const questionStyles =
+    "text-3xl font-latoBlack text-textDark mt-4 leading-tight";
+  const subTextStyles = "text-lg font-latoRegular text-textGray mt-2 mb-8";
 
   const [formData, setFormData] = useState({
     // Step 1: Profile
@@ -103,7 +109,7 @@ const Quiz = () => {
     }
   };
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (step > 1) {
       const prevStep = step - 1;
       setStep(prevStep);
@@ -116,7 +122,7 @@ const Quiz = () => {
       router.back();
       return true;
     }
-  };
+  }, [step, formData]);
 
   // Handle hardware back button
   useEffect(() => {
@@ -130,7 +136,7 @@ const Quiz = () => {
     );
 
     return () => subscription.remove();
-  }, [step, formData]);
+  }, [handleBack]);
 
   const toggleIngredient = (ingredient: string) => {
     setFormData((prev) => {
@@ -172,42 +178,54 @@ const Quiz = () => {
     selectedValue,
     onSelect,
     icon,
+    subText,
   }: {
     title: string;
+    subText: string;
     value: string;
     selectedValue: string;
     onSelect: (v: string) => void;
-    icon?: string;
+    icon?: ImageSourcePropType;
   }) => (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => onSelect(value)}
-      className={`w-full p-5 rounded-2xl border mb-3 flex-row items-center ${
-        selectedValue === value
-          ? "bg-emerald-50 border-primary"
-          : "bg-white border-gray-100"
-      }`}
+      className={"w-full p-5 rounded-2xl h-[120px] mb-3 flex-row items-center"}
+      style={{
+        backgroundColor:
+          selectedValue === value ? "rgba(45, 106, 79, 0.05)" : "white",
+        borderWidth: selectedValue === value ? 2 : 0,
+        borderColor: "#2D6A4F",
+      }}
     >
-      {icon && (
-        <View
-          className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${
-            selectedValue === value ? "bg-primary" : "bg-gray-50"
-          }`}
-        >
-          <MaterialCommunityIcons
-            name={icon as any}
-            size={20}
-            color={selectedValue === value ? "white" : "#475569"}
-          />
-        </View>
-      )}
-      <Text
-        className={`flex-1 font-latoBold text-base ${
-          selectedValue === value ? "text-primary" : "text-textDark"
-        }`}
+      <View
+        style={{
+          backgroundColor:
+            selectedValue === value ? "rgba(16, 185, 129, 0.1)" : "#F1F5F9",
+        }}
+        className="items-center mr-6 justify-center w-[60px] h-[60px] rounded-2xl bg-lightPrimaryOpacity"
       >
-        {title}
-      </Text>
+        {icon && (
+          <View
+            className={"w-10 h-10 rounded-full items-center justify-center"}
+          >
+            <Image resizeMode="contain" className="w-6 h-6" source={icon} />
+          </View>
+        )}
+      </View>
+      <View className="flex-1 mr-4 gap-1">
+        <Text
+          className={`font-latoBold text-[16px] text-textDark text-xl font-publicSansBold`}
+        >
+          {title}
+        </Text>
+        <Text
+          className={`font-latoBold text-[14px] font-publicSansRegular leading-6`}
+          style={{ color: "#64748B" }}
+        >
+          {subText}
+        </Text>
+      </View>
       <View
         className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
           selectedValue === value ? "border-primary" : "border-gray-200"
@@ -344,39 +362,43 @@ const Quiz = () => {
 
         {step === 2 && (
           <View>
-            <Text className="text-2xl font-latoBlack text-textDark mt-4 leading-tight">
-              After washing your face and applying nothing, how does it feel
+            <Text className={questionStyles}>
+              If you wash your face and apply nothing, how does your skin feel
               after 1 hour?
             </Text>
-            <Text className="text-base font-latoRegular text-textGray mt-2 mb-8">
+            <Text className={subTextStyles}>
               This determines your core skin type (Dry vs Oily).
             </Text>
 
             <SelectionCard
-              title="Tight or Flaky"
+              title="Tight and dry"
+              subText="Feels like it needs immediate moisture or stretching"
               value="Dry"
-              icon="water-off"
+              icon={require("../../assets/images/dry.png")}
               selectedValue={formData.skinFeel}
               onSelect={(val) => setFormData({ ...formData, skinFeel: val })}
             />
             <SelectionCard
-              title="Comfortable & Smooth"
+              title="Normal"
+              subText="Neither particularly dry nor oily, feels comfortable"
               value="Normal"
-              icon="check-decagram-outline"
+              icon={require("../../assets/images/normal.png")}
               selectedValue={formData.skinFeel}
               onSelect={(val) => setFormData({ ...formData, skinFeel: val })}
             />
             <SelectionCard
-              title="Shiny only on nose/forehead"
+              title="Combination"
+              subText="Shiny appearance particularly on the nose/forehead"
               value="Combination"
-              icon="format-color-fill"
+              icon={require("../../assets/images/combination.png")}
               selectedValue={formData.skinFeel}
               onSelect={(val) => setFormData({ ...formData, skinFeel: val })}
             />
             <SelectionCard
-              title="Glistening or Oily all over"
+              title="Oily"
+              subText="Your skin appears shiny and oily across the whole face."
               value="Oily"
-              icon="water"
+              icon={require("../../assets/images/oily.png")}
               selectedValue={formData.skinFeel}
               onSelect={(val) => setFormData({ ...formData, skinFeel: val })}
             />
@@ -393,31 +415,36 @@ const Quiz = () => {
 
         {step === 3 && (
           <View>
-            <Text className="text-2xl font-latoBlack text-textDark mt-4 leading-tight">
-              How often do you experience stinging, redness, or itching?
+            <Text className={questionStyles}>
+              How often does your skin sting, turn red, or itch when you try a
+              new soap or cream?
             </Text>
-            <Text className="text-base font-latoRegular text-textGray mt-2 mb-8">
-              Specifically when trying a new soap or cream.
+            <Text className={subTextStyles}>
+              Pick the option that best describes your skin’s reaction to new
+              products.
             </Text>
 
             <SelectionCard
-              title="Never (Resistant)"
+              title="Never"
+              subText="My skin hardly ever reacts to new soaps or creams."
               value="Resistant"
-              icon="shield-check-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.sensitivity}
               onSelect={(val) => setFormData({ ...formData, sensitivity: val })}
             />
             <SelectionCard
-              title="Rarely / Only with strong stuff"
+              title="Moderate"
+              subText="Sometimes my skin feels a little stingy, red, or itchy."
               value="Moderate"
-              icon="alert-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.sensitivity}
               onSelect={(val) => setFormData({ ...formData, sensitivity: val })}
             />
             <SelectionCard
-              title="Frequently / Very picky skin"
+              title="High"
+              subText="My skin reacts often or strongly whenever I try new products."
               value="High"
-              icon="fire"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.sensitivity}
               onSelect={(val) => setFormData({ ...formData, sensitivity: val })}
             />
@@ -434,25 +461,28 @@ const Quiz = () => {
 
         {step === 4 && (
           <View>
-            <Text className="text-2xl font-latoBlack text-textDark mt-4 leading-tight">
-              Do you notice small bumps after using thick body lotions on your
-              face?
+            <Text className={questionStyles}>
+              Do you notice small, rough bumps or pimples on your face after
+              using thick body lotions or hair oils?
             </Text>
-            <Text className="text-base font-latoRegular text-textGray mt-2 mb-8">
-              The "Breakout Trap" check for Acne Cosmetica.
+            <Text className={subTextStyles}>
+              Pick the option that best describes how your skin reacts to heavy
+              lotions or oils.
             </Text>
 
             <SelectionCard
-              title="Yes, I have to be careful"
+              title="Yes, face-only products"
+              subText="I stick to face products because others can cause bumps."
               value="True"
-              icon="emoticon-sad-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.breakouts}
               onSelect={(val) => setFormData({ ...formData, breakouts: val })}
             />
             <SelectionCard
-              title="No, my face handles anything"
+              title="No, my skin handles it"
+              subText="I rarely get bumps from body lotions or hair oils."
               value="False"
-              icon="emoticon-happy-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.breakouts}
               onSelect={(val) => setFormData({ ...formData, breakouts: val })}
             />
@@ -469,38 +499,44 @@ const Quiz = () => {
 
         {step === 5 && (
           <View>
-            <Text className="text-2xl font-latoBlack text-textDark mt-4 leading-tight">
-              How does your skin react to 30 mins of hot sun without protection?
+            <Text className={questionStyles}>
+              How does your skin feel after spending 30 minutes in the hot
+              afternoon sun without any protection?
             </Text>
-            <Text className="text-base font-latoRegular text-textGray mt-2 mb-8">
-              Helps determine sensitivity and pigmentation risk.
+            <Text className={subTextStyles}>
+              Pick the description that best matches your skin’s natural
+              reaction.
             </Text>
 
             <SelectionCard
-              title="Burn painfully, never tan"
+              title="Burns easily, never tans"
+              subText="My skin burns quickly and rarely tans in the sun."
               value="Fitz-1-2"
-              icon="weather-sunny-alert"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
             <SelectionCard
-              title="Burn first, then tan slowly"
+              title="Burns first, tans slowly"
+              subText="My skin usually burns a little before slowly tanning."
               value="Fitz-3"
-              icon="weather-sunny"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
             <SelectionCard
-              title="Tan easily, rarely burn"
+              title="Tans easily, rarely burns"
+              subText="My skin tans easily and hardly ever burns."
               value="Fitz-4"
-              icon="sunglasses"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
             <SelectionCard
-              title="Never burn; deeply pigmented"
+              title="Rarely burns, very tanned"
+              subText="My skin hardly ever burns and gets deeply tanned."
               value="Fitz-5-6"
-              icon="moon-waning-crescent"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
@@ -517,10 +553,10 @@ const Quiz = () => {
 
         {step === 6 && (
           <View>
-            <Text className="text-2xl font-latoBlack text-textDark mt-4 leading-tight">
+            <Text className={questionStyles}>
               Are you currently using any of these ingredients?
             </Text>
-            <Text className="text-base font-latoRegular text-textGray mt-2 mb-8">
+            <Text className={subTextStyles}>
               Select all that apply. This prevents active ingredient conflicts.
             </Text>
 
@@ -574,38 +610,42 @@ const Quiz = () => {
 
         {step === 7 && (
           <View>
-            <Text className="text-2xl font-latoBlack text-textDark mt-4 leading-tight">
+            <Text className={questionStyles}>
               What is your primary skincare goal?
             </Text>
-            <Text className="text-base font-latoRegular text-textGray mt-2 mb-8">
-              We'll tailor your routine based on this objective.
+            <Text className={subTextStyles}>
+              We&apos;ll tailor your routine based on this objective.
             </Text>
 
             <SelectionCard
               title="Clear Dark Spots & Hyperpigmentation"
+              subText="Target dark spots and uneven skin tone."
               value="Brightening"
-              icon="star-four-points-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
             <SelectionCard
               title="Smooth Fine Lines & Anti-aging"
+              subText="Reduce the appearance of fine lines and wrinkles."
               value="Anti-aging"
-              icon="clock-check-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
             <SelectionCard
               title="Fight Acne & Congestion"
+              subText="Target active breakouts and clogged pores."
               value="Clearing"
-              icon="face-man-shimmer-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
             <SelectionCard
               title="Hydration & Barrier Repair"
+              subText="Restore your skin's natural moisture and protective barrier."
               value="Hydration"
-              icon="emoticon-excited-outline"
+              icon={require("../../assets/images/auth-hero-img.png")}
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
@@ -632,9 +672,9 @@ const Quiz = () => {
             <Text className="text-3xl font-latoBlack text-textDark text-center">
               Profile Complete!
             </Text>
-            <Text className="text-lg font-latoRegular text-textGray text-center mt-4 mb-12">
-              We've created a custom skin profile for you based on your unique
-              diagnostics.
+            <Text className={subTextStyles}>
+              We&apos;ve created a custom skin profile for you based on your
+              unique diagnostics.
             </Text>
 
             <View className="w-full bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-12">

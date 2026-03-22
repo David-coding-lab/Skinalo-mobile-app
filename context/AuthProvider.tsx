@@ -36,19 +36,30 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
 
     try {
-      await account.createEmailPasswordSession({
-        email,
-        password,
-      });
+      try {
+        await account.createEmailPasswordSession({
+          email,
+          password,
+        });
 
-      setUser((await account.get()) as Models.User<AppPrefs>);
+        setUser((await account.get()) as Models.User<AppPrefs>);
+        setIsFirstTimeUser("no");
+        await AsyncStorage.setItem("isFirstTimeUser", "no");
+        // setError(null);
+      } catch (error: any) {
+        if (error.type !== "user_session_already_exists") {
+          console.error("Error logging in:", error);
+          throw error; // Rethrow to handle in UI
+        }
+      }
+      const currentUser = (await account.get()) as Models.User<AppPrefs>;
+      setUser(currentUser);
       setIsFirstTimeUser("no");
       await AsyncStorage.setItem("isFirstTimeUser", "no");
-      // setError(null);
     } catch (error) {
       console.error("Error logging in:", error);
       setLoading(false);
-      throw error; // Rethrow to handle in UI
+      throw error;
     }
   };
 
