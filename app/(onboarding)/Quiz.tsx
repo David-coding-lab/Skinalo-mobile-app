@@ -46,9 +46,75 @@ const Quiz = () => {
     activeIngredients: [] as string[],
     // Step 7: Goal
     primaryGoal: "",
+    // Step 8: Skin Tone
+    skinTone: "",
   });
 
-  const ageOptions = Array.from({ length: 85 }, (_, i) => (i + 16).toString());
+  const ageOptions = ["13-17", "18-24", "25-34", "35+"];
+
+  const skinToneOptions = [
+    {
+      id: "fair",
+      label: "Fair",
+      image: require("../../assets/images/fair-skin.png"),
+      fitzMatch: "Fitz-1-2",
+    },
+    {
+      id: "light",
+      label: "Light",
+      image: require("../../assets/images/ligjt.png"),
+      fitzMatch: "Fitz-1-2",
+    },
+    {
+      id: "olive",
+      label: "Olive",
+      image: require("../../assets/images/olive.png"),
+      fitzMatch: "Fitz-3",
+    },
+    {
+      id: "medium",
+      label: "Medium",
+      image: require("../../assets/images/meduim.png"),
+      fitzMatch: "Fitz-3",
+    },
+    {
+      id: "deep",
+      label: "Deep",
+      image: require("../../assets/images/deep.png"),
+      fitzMatch: "Fitz-4",
+    },
+    {
+      id: "darkest",
+      label: "Darkest",
+      image: require("../../assets/images/darkest.png"),
+      fitzMatch: "Fitz-5-6",
+    },
+  ];
+
+  // Mapping engine logic
+  const mapToEngine = (data: typeof formData) => {
+    // This will be used in step 9
+    return {
+      age_range: data.age,
+      gender: data.gender.toLowerCase(),
+      baumann_type: {
+        hydration: data.skinFeel === "Dry" ? "type_dry" : "type_oily",
+        sensitivity:
+          data.sensitivity === "High" ? "type_sensitive" : "type_resistant",
+        pigment: "type_pigmented",
+        elasticity: "type_wrinkle_prone",
+      },
+      fitzpatrick: data.sunReaction,
+      skin_tone: data.skinTone,
+      active_ingredients: {
+        retinol: data.activeIngredients.includes("Retinol / Vitamin A"),
+        vit_c: data.activeIngredients.includes("Vitamin C"),
+        acids: data.activeIngredients.includes("AHA / BHA acids"),
+        bp: data.activeIngredients.includes(" Benzoyl Peroxide"),
+      },
+      goal: data.primaryGoal,
+    };
+  };
 
   // Load persistence
   useEffect(() => {
@@ -82,7 +148,7 @@ const Quiz = () => {
   };
 
   const handleNext = async () => {
-    if (step < 8) {
+    if (step < 9) {
       const nextStep = step + 1;
       setStep(nextStep);
       saveProgress(nextStep, formData);
@@ -94,9 +160,11 @@ const Quiz = () => {
   const completeOnboarding = async () => {
     setIsSubmitting(true);
     try {
+      const clinicalProfile = mapToEngine(formData);
       // Final Sync to Appwrite Prefs
       await account.updatePrefs({
         ...formData,
+        clinicalProfile: JSON.stringify(clinicalProfile),
         onboardingComplete: true,
       });
 
@@ -160,13 +228,13 @@ const Quiz = () => {
           {step === 1 ? "Profile Setup" : `Question ${step - 1}`}
         </Text>
         <Text className="font-publicSansMedium text-textGray text-xs">
-          Step: {step} of 8
+          Step: {step} of 9
         </Text>
       </View>
       <View className="w-full h-[6px] bg-gray-200 rounded-full overflow-hidden">
         <View
           className="h-full bg-primary"
-          style={{ width: `${(step / 8) * 100}%` }}
+          style={{ width: `${(step / 9) * 100}%` }}
         />
       </View>
     </View>
@@ -179,6 +247,7 @@ const Quiz = () => {
     onSelect,
     icon,
     subText,
+    systemIcon,
   }: {
     title: string;
     subText: string;
@@ -186,6 +255,7 @@ const Quiz = () => {
     selectedValue: string;
     onSelect: (v: string) => void;
     icon?: ImageSourcePropType;
+    systemIcon?: keyof typeof Ionicons.glyphMap;
   }) => (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -211,6 +281,13 @@ const Quiz = () => {
           >
             <Image resizeMode="contain" className="w-6 h-6" source={icon} />
           </View>
+        )}
+        {systemIcon && (
+          <Ionicons
+            name={systemIcon}
+            size={24}
+            color={selectedValue === value ? "#2D6A4F" : "#475569"}
+          />
         )}
       </View>
       <View className="flex-1 mr-4 gap-1">
@@ -282,7 +359,9 @@ const Quiz = () => {
               <Text
                 className={`font-latoRegular text-base ${formData.age ? "text-textDark" : "text-textLightGray"}`}
               >
-                {formData.age ? `${formData.age} years old` : "Select your age"}
+                {formData.age
+                  ? `Range: ${formData.age}`
+                  : "Select your age range"}
               </Text>
               <Ionicons name="chevron-down" size={20} color="#475569" />
             </TouchableOpacity>
@@ -554,51 +633,104 @@ const Quiz = () => {
         {step === 6 && (
           <View>
             <Text className={questionStyles}>
-              Are you currently using any of these ingredients?
+              Do you use any “power ingredients” in your skincare routine?
             </Text>
             <Text className={subTextStyles}>
-              Select all that apply. This prevents active ingredient conflicts.
+              These ingredients can make your skin sensitive if mixed with
+              certain products.
             </Text>
 
             {[
-              "Retinol / Retinoids",
-              "Vitamin C",
-              "AHA (Glycolic/Lactic)",
-              "BHA (Salicylic)",
-              "Benzoyl Peroxide",
-              "Hydroquinone",
+              {
+                active: "Retinol / Vitamin A",
+                icon: require("../../assets/images/moon.png"),
+                subText: "Helps with wrinkles and cell turnover.",
+              },
+              {
+                active: "Vitamin C",
+                icon: require("../../assets/images/sun.png"),
+                subText: "Brightens skin and protects from damage.",
+              },
+              {
+                active: "AHA / BHA acids",
+                icon: require("../../assets/images/diamond.png"),
+                subText: "Exfoliates dead skin for smoother texture.",
+              },
+              {
+                active: " Benzoyl Peroxide",
+                icon: require("../../assets/images/shield.png"),
+                subText: "Targets acne and reduces breakouts.",
+              },
+              {
+                active: "Not sure / None",
+                icon: require("../../assets/images/question-mark.png"),
+                subText: "I’m not sure or don’t use any of these ingredients.",
+              },
             ].map((ing) => (
               <TouchableOpacity
-                key={ing}
-                onPress={() => toggleIngredient(ing)}
-                className={`w-full p-5 rounded-2xl border mb-3 flex-row items-center ${
-                  formData.activeIngredients.includes(ing)
-                    ? "bg-emerald-50 border-primary"
-                    : "bg-white border-gray-100"
-                }`}
+                key={ing.active}
+                onPress={() => toggleIngredient(ing.active)}
+                className={
+                  "w-full p-5 rounded-2xl h-[120px] mb-3 flex-row items-center"
+                }
+                style={{
+                  backgroundColor: formData.activeIngredients.includes(
+                    ing.active,
+                  )
+                    ? "rgba(45, 106, 79, 0.05)"
+                    : "white",
+                  borderWidth: formData.activeIngredients.includes(ing.active)
+                    ? 2
+                    : 0,
+                  borderColor: "#2D6A4F",
+                }}
               >
-                <Text
-                  className={`flex-1 font-latoBold text-base ${
-                    formData.activeIngredients.includes(ing)
-                      ? "text-primary"
-                      : "text-textDark"
+                <View
+                  style={{
+                    backgroundColor: formData.activeIngredients.includes(
+                      ing.active,
+                    )
+                      ? "rgba(16, 185, 129, 0.1)"
+                      : "#F1F5F9",
+                  }}
+                  className="items-center mr-6 justify-center w-[60px] h-[60px] rounded-2xl bg-lightPrimaryOpacity"
+                >
+                  <View
+                    className={
+                      "w-10 h-10 rounded-full items-center justify-center"
+                    }
+                  >
+                    <Image
+                      resizeMode="contain"
+                      className="w-6 h-6"
+                      source={ing.icon}
+                    />
+                  </View>
+                </View>
+                <View className="flex-1 mr-4 gap-1">
+                  <Text
+                    className={`font-latoBold text-[16px] text-textDark text-xl font-publicSansBold`}
+                  >
+                    {ing.active}
+                  </Text>
+                  <Text
+                    className={`font-latoBold text-[14px] font-publicSansRegular leading-6`}
+                    style={{ color: "#64748B" }}
+                  >
+                    {ing.subText}
+                  </Text>
+                </View>
+                <View
+                  className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
+                    formData.activeIngredients.includes(ing.active)
+                      ? "border-primary"
+                      : "border-gray-200"
                   }`}
                 >
-                  {ing}
-                </Text>
-                <Ionicons
-                  name={
-                    formData.activeIngredients.includes(ing)
-                      ? "checkbox"
-                      : "square-outline"
-                  }
-                  size={24}
-                  color={
-                    formData.activeIngredients.includes(ing)
-                      ? "#2D6A4F"
-                      : "#CBD5E1"
-                  }
-                />
+                  {formData.activeIngredients.includes(ing.active) && (
+                    <View className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
 
@@ -621,7 +753,7 @@ const Quiz = () => {
               title="Clear Dark Spots & Hyperpigmentation"
               subText="Target dark spots and uneven skin tone."
               value="Brightening"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              systemIcon="sparkles-outline"
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
@@ -629,7 +761,7 @@ const Quiz = () => {
               title="Smooth Fine Lines & Anti-aging"
               subText="Reduce the appearance of fine lines and wrinkles."
               value="Anti-aging"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              systemIcon="hourglass-outline"
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
@@ -637,7 +769,7 @@ const Quiz = () => {
               title="Fight Acne & Congestion"
               subText="Target active breakouts and clogged pores."
               value="Clearing"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              systemIcon="shield-checkmark-outline"
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
@@ -645,7 +777,7 @@ const Quiz = () => {
               title="Hydration & Barrier Repair"
               subText="Restore your skin's natural moisture and protective barrier."
               value="Hydration"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              systemIcon="water-outline"
               selectedValue={formData.primaryGoal}
               onSelect={(val) => setFormData({ ...formData, primaryGoal: val })}
             />
@@ -661,6 +793,69 @@ const Quiz = () => {
         )}
 
         {step === 8 && (
+          <View>
+            <Text className={questionStyles}>Skin Tone Analysis</Text>
+            <Text className={subTextStyles}>
+              Select the option that most closely matches your natural,
+              un-tanned skin tone. This helps our scanner calibrate for your
+              unique profile.
+            </Text>
+
+            <View className="flex-row flex-wrap justify-between">
+              {skinToneOptions.map((tone) => (
+                <TouchableOpacity
+                  key={tone.id}
+                  onPress={() =>
+                    setFormData({ ...formData, skinTone: tone.id })
+                  }
+                  className="w-[48%] mb-4 bg-white rounded-3xl border-2 overflow-hidden"
+                  style={{
+                    borderColor:
+                      formData.skinTone === tone.id ? "#2D6A4F" : "transparent",
+                  }}
+                >
+                  <View className="p-4 items-center">
+                    <Image
+                      source={tone.image}
+                      className="w-20 h-20 rounded-full mb-3"
+                      resizeMode="cover"
+                    />
+                    <Text className="font-publicSansBold text-textDark">
+                      {tone.label}
+                    </Text>
+
+                    {/* AI Recommendation Badge */}
+                    {formData.sunReaction === tone.fitzMatch && (
+                      <View className="mt-2 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
+                        <Text className="text-[10px] font-publicSansBold text-primary uppercase">
+                          AI Recommended
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View className="mt-4 bg-amber-50 p-4 rounded-2xl border border-amber-100 flex-row items-center">
+              <Ionicons name="alert-circle" size={24} color="#D97706" />
+              <Text className="flex-1 ml-3 text-sm font-latoBold text-amber-800 leading-5">
+                Accuracy Note: Your selection will influence the clinical scan
+                results and skin health outcomes. Choose carefully.
+              </Text>
+            </View>
+
+            <View className="mt-12">
+              <PrimaryButton
+                text="Final Step"
+                callBack={handleNext}
+                disabled={!formData.skinTone}
+              />
+            </View>
+          </View>
+        )}
+
+        {step === 9 && (
           <View className="items-center py-10">
             <View className="w-24 h-24 bg-emerald-100 rounded-full items-center justify-center mb-6">
               <MaterialCommunityIcons
@@ -681,15 +876,21 @@ const Quiz = () => {
               <Text className="font-publicSansBold text-textGray uppercase text-xs tracking-widest mb-4">
                 Your Profile Summary
               </Text>
-              <View className="flex-row items-center mb-3">
+              <View className="flex-row items-center mb-4">
                 <Ionicons name="person-outline" size={18} color="#475569" />
-                <Text className="ml-3 font-latoBold text-textDark">
-                  {formData.age} Year old {formData.gender}
+                <Text className="ml-3 font-latoBold text-textDark text-lg">
+                  {formData.age} Year {formData.gender}
+                </Text>
+              </View>
+              <View className="flex-row items-center mb-4">
+                <Ionicons name="water-outline" size={18} color="#475569" />
+                <Text className="ml-3 font-latoBold text-textDark text-lg">
+                  Skin: {formData.skinFeel} ({formData.sensitivity})
                 </Text>
               </View>
               <View className="flex-row items-center">
                 <Ionicons name="sparkles-outline" size={18} color="#475569" />
-                <Text className="ml-3 font-latoBold text-textDark">
+                <Text className="ml-3 font-latoBold text-textDark text-lg">
                   Focus: {formData.primaryGoal}
                 </Text>
               </View>
@@ -717,7 +918,7 @@ const Quiz = () => {
               <View className="bg-white rounded-t-[40px] px-6 pt-10 pb-12 h-[60%]">
                 <View className="w-12 h-1.5 bg-gray-200 rounded-full self-center mb-8" />
                 <Text className="text-2xl font-latoBlack text-textDark mb-6 text-center">
-                  Select your age
+                  Select your age range
                 </Text>
 
                 <FlatList
