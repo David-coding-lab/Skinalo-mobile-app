@@ -428,7 +428,7 @@ const Quiz = () => {
               title="Never"
               subText="My skin hardly ever reacts to new soaps or creams."
               value="Resistant"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/soap.png")}
               selectedValue={formData.sensitivity}
               onSelect={(val) => setFormData({ ...formData, sensitivity: val })}
             />
@@ -436,7 +436,7 @@ const Quiz = () => {
               title="Moderate"
               subText="Sometimes my skin feels a little stingy, red, or itchy."
               value="Moderate"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/normal.png")}
               selectedValue={formData.sensitivity}
               onSelect={(val) => setFormData({ ...formData, sensitivity: val })}
             />
@@ -444,7 +444,7 @@ const Quiz = () => {
               title="High"
               subText="My skin reacts often or strongly whenever I try new products."
               value="High"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/react-icon.png")}
               selectedValue={formData.sensitivity}
               onSelect={(val) => setFormData({ ...formData, sensitivity: val })}
             />
@@ -474,7 +474,7 @@ const Quiz = () => {
               title="Yes, face-only products"
               subText="I stick to face products because others can cause bumps."
               value="True"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/oily.png")}
               selectedValue={formData.breakouts}
               onSelect={(val) => setFormData({ ...formData, breakouts: val })}
             />
@@ -482,7 +482,7 @@ const Quiz = () => {
               title="No, my skin handles it"
               subText="I rarely get bumps from body lotions or hair oils."
               value="False"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/normal.png")}
               selectedValue={formData.breakouts}
               onSelect={(val) => setFormData({ ...formData, breakouts: val })}
             />
@@ -512,7 +512,7 @@ const Quiz = () => {
               title="Burns easily, never tans"
               subText="My skin burns quickly and rarely tans in the sun."
               value="Fitz-1-2"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/Ellipse 2.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
@@ -520,7 +520,7 @@ const Quiz = () => {
               title="Burns first, tans slowly"
               subText="My skin usually burns a little before slowly tanning."
               value="Fitz-3"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/Ellipse 3.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
@@ -528,7 +528,7 @@ const Quiz = () => {
               title="Tans easily, rarely burns"
               subText="My skin tans easily and hardly ever burns."
               value="Fitz-4"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/Ellipse 4.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
@@ -536,7 +536,7 @@ const Quiz = () => {
               title="Rarely burns, very tanned"
               subText="My skin hardly ever burns and gets deeply tanned."
               value="Fitz-5-6"
-              icon={require("../../assets/images/auth-hero-img.png")}
+              icon={require("../../assets/images/Ellipse 1.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
