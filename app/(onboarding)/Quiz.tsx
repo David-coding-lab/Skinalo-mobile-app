@@ -57,37 +57,37 @@ const Quiz = () => {
       id: "fair",
       label: "Fair",
       image: require("../../assets/images/fair-skin.png"),
-      fitzMatch: "Fitz-1-2",
+      fitzMatch: ["Fitz-1"],
     },
     {
       id: "light",
       label: "Light",
       image: require("../../assets/images/ligjt.png"),
-      fitzMatch: "Fitz-1-2",
+      fitzMatch: ["Fitz-2"],
     },
     {
       id: "olive",
       label: "Olive",
       image: require("../../assets/images/olive.png"),
-      fitzMatch: "Fitz-3",
+      fitzMatch: ["Fitz-3"],
     },
     {
       id: "medium",
       label: "Medium",
       image: require("../../assets/images/meduim.png"),
-      fitzMatch: "Fitz-3",
+      fitzMatch: ["Fitz-4"],
     },
     {
       id: "deep",
       label: "Deep",
       image: require("../../assets/images/deep.png"),
-      fitzMatch: "Fitz-4",
+      fitzMatch: ["Fitz-5"],
     },
     {
       id: "darkest",
       label: "Darkest",
       image: require("../../assets/images/darkest.png"),
-      fitzMatch: "Fitz-5-6",
+      fitzMatch: ["Fitz-6"],
     },
   ];
 
@@ -588,16 +588,24 @@ const Quiz = () => {
             </Text>
 
             <SelectionCard
-              title="Burns easily, never tans"
-              subText="My skin burns quickly and rarely tans in the sun."
-              value="Fitz-1-2"
+              title="Always burns, never tans"
+              subText="My skin is very sensitive to sunlight and always turns red."
+              value="Fitz-1"
+              icon={require("../../assets/images/Ellipse 2.png")}
+              selectedValue={formData.sunReaction}
+              onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
+            />
+            <SelectionCard
+              title="Burns easily, tans a little"
+              subText="My skin burns very easily and is difficult to tan."
+              value="Fitz-2"
               icon={require("../../assets/images/Ellipse 2.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
             <SelectionCard
               title="Burns first, tans slowly"
-              subText="My skin usually burns a little before slowly tanning."
+              subText="My skin often gets a mild burn before it starts to tan."
               value="Fitz-3"
               icon={require("../../assets/images/Ellipse 3.png")}
               selectedValue={formData.sunReaction}
@@ -605,16 +613,24 @@ const Quiz = () => {
             />
             <SelectionCard
               title="Tans easily, rarely burns"
-              subText="My skin tans easily and hardly ever burns."
+              subText="My skin tans very well and hardly ever gets a sunburn."
               value="Fitz-4"
               icon={require("../../assets/images/Ellipse 4.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
             />
             <SelectionCard
-              title="Rarely burns, very tanned"
-              subText="My skin hardly ever burns and gets deeply tanned."
-              value="Fitz-5-6"
+              title="Tans very easily, almost never burns"
+              subText="My skin gets dark very quickly and is very resistant to the sun."
+              value="Fitz-5"
+              icon={require("../../assets/images/Ellipse 4.png")}
+              selectedValue={formData.sunReaction}
+              onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
+            />
+            <SelectionCard
+              title="Never burns, always tans deeply"
+              subText="My skin is naturally very dark and does not burn in the sun."
+              value="Fitz-6"
               icon={require("../../assets/images/Ellipse 1.png")}
               selectedValue={formData.sunReaction}
               onSelect={(val) => setFormData({ ...formData, sunReaction: val })}
@@ -824,11 +840,11 @@ const Quiz = () => {
                       {tone.label}
                     </Text>
 
-                    {/* AI Recommendation Badge */}
-                    {formData.sunReaction === tone.fitzMatch && (
+                    {/* Auto Recommendation Badge */}
+                    {tone.fitzMatch.includes(formData.sunReaction) && (
                       <View className="mt-2 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
                         <Text className="text-[10px] font-publicSansBold text-primary uppercase">
-                          AI Recommended
+                          Auto Recommended
                         </Text>
                       </View>
                     )}
