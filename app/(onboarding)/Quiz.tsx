@@ -24,6 +24,7 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAgeModalVisible, setIsAgeModalVisible] = useState(false);
+  const [showError, setShowError] = useState(false);
 
   const questionStyles =
     "text-3xl font-latoBlack text-textDark mt-4 leading-tight";
@@ -50,7 +51,7 @@ const Quiz = () => {
     skinTone: "",
   });
 
-  const ageOptions = ["13-17", "18-24", "25-34", "35+"];
+  const ageOptions = Array.from({ length: 85 }, (_, i) => (i + 13).toString());
 
   const skinToneOptions = [
     {
@@ -95,14 +96,72 @@ const Quiz = () => {
   const mapToEngine = (data: typeof formData) => {
     // This will be used in step 9
     return {
-      age_range: data.age,
+      age: data.age,
       gender: data.gender.toLowerCase(),
+      location: data.location,
       baumann_type: {
-        hydration: data.skinFeel === "Dry" ? "type_dry" : "type_oily",
+        hydration:
+          data.skinFeel === "Dry"
+            ? "type_dry"
+            : data.skinFeel === "Normal"
+              ? "type_normal"
+              : data.skinFeel === "Combination"
+                ? "type_combination"
+                : "type_oily",
         sensitivity:
-          data.sensitivity === "High" ? "type_sensitive" : "type_resistant",
-        pigment: "type_pigmented",
-        elasticity: "type_wrinkle_prone",
+          data.sensitivity === "High"
+            ? "type_sensitive"
+            : data.sensitivity === "Moderate"
+              ? "type_moderate"
+              : "type_resistant",
+        pigment:
+          data.sunReaction === "Fitz-1" || data.sunReaction === "Fitz-2"
+            ? "type_non_pigmented"
+            : data.sunReaction === "Fitz-3"
+              ? "type_medium_pigmented"
+              : "type_pigmented", // Fitz 4, 5, 6
+        elasticity: (() => {
+          // 1. Establish Base Age
+          let ageValue = parseInt(data.age) || 25;
+          let threshold = 35;
+
+          // 2. Hydration Offset (The "Baumann" Factor)
+          if (data.skinFeel === "Dry") threshold -= 5;
+          if (data.skinFeel === "Oily") threshold += 5;
+
+          // 3. Pigment Offset (UV/Dermis Protection Logic)
+          if (data.sunReaction === "Fitz-1" || data.sunReaction === "Fitz-2") {
+            // Non-pigmented: High UV damage risk, thinner dermis.
+            threshold -= 5;
+          } else if (data.sunReaction === "Fitz-3") {
+            // Medium Pigmented (The Pivot Point):
+            // "Burn then Tan" group. Moderate protection but still prone to structural collapse.
+            threshold += 2;
+          } else {
+            // Pigmented (Fitz-4, 5, 6):
+            // "Rarely Burn" group. Thick dermis and natural "SPF 10+" equivalent.
+            // Stays in tight/elastic phase ~7-10 years longer than non-pigmented.
+            threshold += 10;
+          }
+
+          // 4. Gender Offset
+          if (data.gender.toLowerCase() === "male") threshold += 3;
+
+          // 5. Sensitivity Modifier
+          if (data.sensitivity === "High") threshold -= 3;
+
+          // Final Decision
+          return ageValue >= threshold
+            ? "type_wrinkle_prone"
+            : "type_tight_elastic";
+        })(),
+      },
+      pore_profile: {
+        acne_prone: data.breakouts === "True",
+        status:
+          data.breakouts === "True"
+            ? "highly_comedogenic_reactive"
+            : "pore_resilient",
       },
       fitzpatrick: data.sunReaction,
       skin_tone: data.skinTone,
@@ -148,6 +207,44 @@ const Quiz = () => {
   };
 
   const handleNext = async () => {
+    // Validation check for current step
+    let isValid = true;
+    switch (step) {
+      case 1:
+        isValid = !!(formData.age && formData.gender && formData.location);
+        break;
+      case 2:
+        isValid = !!formData.skinFeel;
+        break;
+      case 3:
+        isValid = !!formData.sensitivity;
+        break;
+      case 4:
+        isValid = !!formData.breakouts;
+        break;
+      case 5:
+        isValid = !!formData.sunReaction;
+        break;
+      case 6:
+        // Optional usually, but we can enforce selection if needed
+        isValid = formData.activeIngredients.length > 0;
+        break;
+      case 7:
+        isValid = !!formData.primaryGoal;
+        break;
+      case 8:
+        isValid = !!formData.skinTone;
+        break;
+    }
+
+    if (!isValid) {
+      setShowError(true);
+      // Auto-hide error after 3 seconds
+      setTimeout(() => setShowError(false), 3000);
+      return;
+    }
+
+    setShowError(false);
     if (step < 9) {
       const nextStep = step + 1;
       setStep(nextStep);
@@ -330,6 +427,15 @@ const Quiz = () => {
 
       {renderProgress()}
 
+      {showError && (
+        <View className="mx-6 mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl flex-row items-center">
+          <Ionicons name="alert-circle" size={20} color="#EF4444" />
+          <Text className="ml-2 font-publicSansMedium text-red-600">
+            Please complete the current step to continue.
+          </Text>
+        </View>
+      )}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -359,9 +465,7 @@ const Quiz = () => {
               <Text
                 className={`font-latoRegular text-base ${formData.age ? "text-textDark" : "text-textLightGray"}`}
               >
-                {formData.age
-                  ? `Range: ${formData.age}`
-                  : "Select your age range"}
+                {formData.age ? `${formData.age} years old` : "Select your age"}
               </Text>
               <Ionicons name="chevron-down" size={20} color="#475569" />
             </TouchableOpacity>
@@ -430,11 +534,7 @@ const Quiz = () => {
             </View>
 
             <View className="mt-4">
-              <PrimaryButton
-                text="Continue"
-                callBack={handleNext}
-                disabled={!formData.age || !formData.gender}
-              />
+              <PrimaryButton text="Continue" callBack={handleNext} />
             </View>
           </View>
         )}
@@ -483,11 +583,7 @@ const Quiz = () => {
             />
 
             <View className="mt-8">
-              <PrimaryButton
-                text="Next"
-                callBack={handleNext}
-                disabled={!formData.skinFeel}
-              />
+              <PrimaryButton text="Next" callBack={handleNext} />
             </View>
           </View>
         )}
@@ -529,11 +625,7 @@ const Quiz = () => {
             />
 
             <View className="mt-8">
-              <PrimaryButton
-                text="Next"
-                callBack={handleNext}
-                disabled={!formData.sensitivity}
-              />
+              <PrimaryButton text="Next" callBack={handleNext} />
             </View>
           </View>
         )}
@@ -567,11 +659,7 @@ const Quiz = () => {
             />
 
             <View className="mt-8">
-              <PrimaryButton
-                text="Next"
-                callBack={handleNext}
-                disabled={!formData.breakouts}
-              />
+              <PrimaryButton text="Next" callBack={handleNext} />
             </View>
           </View>
         )}
@@ -637,11 +725,7 @@ const Quiz = () => {
             />
 
             <View className="mt-8">
-              <PrimaryButton
-                text="Next"
-                callBack={handleNext}
-                disabled={!formData.sunReaction}
-              />
+              <PrimaryButton text="Next" callBack={handleNext} />
             </View>
           </View>
         )}
@@ -799,11 +883,7 @@ const Quiz = () => {
             />
 
             <View className="mt-8">
-              <PrimaryButton
-                text="Almost Done"
-                callBack={handleNext}
-                disabled={!formData.primaryGoal}
-              />
+              <PrimaryButton text="Almost Done" callBack={handleNext} />
             </View>
           </View>
         )}
@@ -824,7 +904,7 @@ const Quiz = () => {
                   onPress={() =>
                     setFormData({ ...formData, skinTone: tone.id })
                   }
-                  className="w-[48%] mb-4 bg-white rounded-3xl border-2 overflow-hidden"
+                  className="w-[48%] h-72 mb-4 bg-white rounded-3xl border-2 overflow-hidden"
                   style={{
                     borderColor:
                       formData.skinTone === tone.id ? "#2D6A4F" : "transparent",
@@ -833,10 +913,17 @@ const Quiz = () => {
                   <View className="p-4 items-center">
                     <Image
                       source={tone.image}
-                      className="w-20 h-20 rounded-full mb-3"
+                      className="w-44 h-44 rounded-3xl mb-3"
                       resizeMode="cover"
                     />
-                    <Text className="font-publicSansBold text-textDark">
+                    <Text
+                      className="font-publicSansBold text-base text-textDark"
+                      style={{
+                        marginTop: tone.fitzMatch.includes(formData.sunReaction)
+                          ? 0
+                          : 20,
+                      }}
+                    >
                       {tone.label}
                     </Text>
 
@@ -862,11 +949,7 @@ const Quiz = () => {
             </View>
 
             <View className="mt-12">
-              <PrimaryButton
-                text="Final Step"
-                callBack={handleNext}
-                disabled={!formData.skinTone}
-              />
+              <PrimaryButton text="Final Step" callBack={handleNext} />
             </View>
           </View>
         )}
@@ -934,7 +1017,7 @@ const Quiz = () => {
               <View className="bg-white rounded-t-[40px] px-6 pt-10 pb-12 h-[60%]">
                 <View className="w-12 h-1.5 bg-gray-200 rounded-full self-center mb-8" />
                 <Text className="text-2xl font-latoBlack text-textDark mb-6 text-center">
-                  Select your age range
+                  Select your age
                 </Text>
 
                 <FlatList
