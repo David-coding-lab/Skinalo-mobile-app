@@ -1,6 +1,6 @@
 import { account } from "@/libs/appwrite";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { createContext, useContext, useEffect, useState } from "react";
 import { ActivityIndicator } from "react-native";
 import { ID, Models } from "react-native-appwrite";
@@ -24,6 +24,7 @@ interface AppPrefs extends Models.Preferences {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [appLoading, setAppLoading] = useState(true);
   const [user, setUser] = useState<Models.User<AppPrefs> | null>(null);
@@ -138,6 +139,9 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // ✅ Check if onboarding is complete
         const onboardingComplete = user.prefs?.onboardingComplete === true;
 
+        // Skip redirect if the user is already on the success screen
+        if (pathname.includes("/success")) return;
+
         if (!onboardingComplete) {
           router.replace("/(onboarding)/Quiz");
         } else {
@@ -147,7 +151,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, 10);
 
     return () => clearTimeout(timeout);
-  }, [user, appLoading, isFirstTimeUser]);
+  }, [user, appLoading, isFirstTimeUser, pathname]);
 
   return (
     <AuthContext.Provider

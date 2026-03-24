@@ -1,3 +1,4 @@
+import LoadingOverlay from "@/components/LoadingOverlay";
 import PrimaryButton from "@/components/PrimaryButton";
 import { account } from "@/libs/appwrite";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -23,6 +24,7 @@ const Quiz = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isAgeModalVisible, setIsAgeModalVisible] = useState(false);
   const [showError, setShowError] = useState(false);
 
@@ -239,8 +241,11 @@ const Quiz = () => {
 
     if (!isValid) {
       setShowError(true);
-      // Auto-hide error after 3 seconds
-      setTimeout(() => setShowError(false), 3000);
+      // Ensure we are at the top to see the error
+      // (Optional: adding a ref to the scrollview would be better, but we don't have one here)
+
+      // Auto-hide error after 4 seconds for better readability
+      setTimeout(() => setShowError(false), 4000);
       return;
     }
 
@@ -250,12 +255,13 @@ const Quiz = () => {
       setStep(nextStep);
       saveProgress(nextStep, formData);
     } else {
-      await completeOnboarding();
+      setIsGenerating(true);
     }
   };
 
   const completeOnboarding = async () => {
     setIsSubmitting(true);
+    setIsGenerating(false);
     try {
       const clinicalProfile = mapToEngine(formData);
       // Final Sync to Appwrite Prefs
@@ -267,7 +273,11 @@ const Quiz = () => {
 
       // Clear local persistence
       await AsyncStorage.removeItem("onboarding_data");
-      // AuthProvider's useEffect will catch the update and redirect to /
+      
+      // Delay slightly to ensure Appwrite state is synchronized
+      setTimeout(() => {
+        router.replace("/(onboarding)/success");
+      }, 100);
     } catch (e) {
       console.error("Failed to complete onboarding", e);
       setIsSubmitting(false);
@@ -949,56 +959,124 @@ const Quiz = () => {
             </View>
 
             <View className="mt-12">
-              <PrimaryButton text="Final Step" callBack={handleNext} />
+              <PrimaryButton text="Finish" callBack={handleNext} />
             </View>
           </View>
         )}
 
         {step === 9 && (
-          <View className="items-center py-10">
-            <View className="w-24 h-24 bg-emerald-100 rounded-full items-center justify-center mb-6">
+          <View className="items-center py-6">
+            <View className="w-20 h-20 bg-primaryOpacity rounded-full items-center justify-center mb-6">
               <MaterialCommunityIcons
-                name="check-bold"
-                size={48}
+                name="clipboard-check-outline"
+                size={42}
                 color="#2D6A4F"
               />
             </View>
-            <Text className="text-3xl font-latoBlack text-textDark text-center">
-              Profile Complete!
+            <Text className="text-3xl font-latoBlack text-textDark text-center px-4">
+              All Set! Let&apos;s Review
             </Text>
-            <Text className={subTextStyles}>
-              We&apos;ve created a custom skin profile for you based on your
-              unique diagnostics.
+            <Text className={`${subTextStyles} text-center px-6`}>
+              We&apos;ve built your clinical profile. Please confirm your
+              diagnostic summary below before we start your first scan.
             </Text>
 
-            <View className="w-full bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-12">
-              <Text className="font-publicSansBold text-textGray uppercase text-xs tracking-widest mb-4">
-                Your Profile Summary
-              </Text>
-              <View className="flex-row items-center mb-4">
-                <Ionicons name="person-outline" size={18} color="#475569" />
-                <Text className="ml-3 font-latoBold text-textDark text-lg">
-                  {formData.age} Year {formData.gender}
-                </Text>
+            {/* Detailed Summary Cards */}
+            <View className="w-full gap-4 mb-10">
+              {/* Profile Card */}
+              <View className="bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm flex-row items-center">
+                <View className="w-12 h-12 rounded-2xl bg-blue-50 items-center justify-center">
+                  <Ionicons name="person" size={20} color="#3B82F6" />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-[10px] font-publicSansBold text-textGray uppercase tracking-widest">
+                    Personal Profile
+                  </Text>
+                  <Text className="font-latoBold text-textDark text-lg">
+                    {formData.age} Years old • {formData.gender}
+                  </Text>
+                  <Text className="text-xs text-textGray">
+                    {formData.location}
+                  </Text>
+                </View>
               </View>
-              <View className="flex-row items-center mb-4">
-                <Ionicons name="water-outline" size={18} color="#475569" />
-                <Text className="ml-3 font-latoBold text-textDark text-lg">
-                  Skin: {formData.skinFeel} ({formData.sensitivity})
-                </Text>
+
+              {/* Skin Diagnostic Card */}
+              <View className="bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm flex-row items-center">
+                <View className="w-12 h-12 rounded-2xl bg-emerald-50 items-center justify-center">
+                  <Ionicons name="medical" size={20} color="#10B981" />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-[10px] font-publicSansBold text-textGray uppercase tracking-widest">
+                    Clinical Diagnostic
+                  </Text>
+                  <Text className="font-latoBold text-textDark text-lg">
+                    {formData.skinFeel} ({formData.sensitivity} Sensitive)
+                  </Text>
+                  <Text className="text-xs text-textGray">
+                    Pore Status:{" "}
+                    {formData.breakouts === "True"
+                      ? "Acne Prone"
+                      : "Pore Resilient"}
+                  </Text>
+                </View>
               </View>
-              <View className="flex-row items-center">
-                <Ionicons name="sparkles-outline" size={18} color="#475569" />
-                <Text className="ml-3 font-latoBold text-textDark text-lg">
-                  Focus: {formData.primaryGoal}
-                </Text>
+
+              {/* Goal & Ingredients Card */}
+              <View className="bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm flex-row items-center">
+                <View className="w-12 h-12 rounded-2xl bg-amber-50 items-center justify-center">
+                  <Ionicons name="sparkles" size={20} color="#F59E0B" />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-[10px] font-publicSansBold text-textGray uppercase tracking-widest">
+                    Optimization Goal
+                  </Text>
+                  <Text className="font-latoBold text-textDark text-lg">
+                    {formData.primaryGoal}
+                  </Text>
+                  <View className="flex-row flex-wrap gap-1 mt-1">
+                    {formData.activeIngredients.length > 0 ? (
+                      formData.activeIngredients
+                        .filter((i) => i !== "Not sure / None")
+                        .map((ing, idx) => (
+                          <View
+                            key={idx}
+                            className="bg-gray-100 px-2 py-0.5 rounded-md"
+                          >
+                            <Text className="text-[10px] text-textGray font-publicSansMedium">
+                              {ing}
+                            </Text>
+                          </View>
+                        ))
+                    ) : (
+                      <Text className="text-xs text-textGray">
+                        No active ingredients
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+
+              {/* Tone Verification Card */}
+              <View className="bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm flex-row items-center">
+                <View className="w-12 h-12 rounded-2xl bg-purple-50 items-center justify-center">
+                  <Ionicons name="color-palette" size={20} color="#8B5CF6" />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-[10px] font-publicSansBold text-textGray uppercase tracking-widest">
+                    Calibration
+                  </Text>
+                  <Text className="font-latoBold text-textDark text-lg capitalize">
+                    {formData.skinTone} Tone
+                  </Text>
+                </View>
               </View>
             </View>
 
             <PrimaryButton
-              text="Analyze My Skin"
+              text="Complete Profile"
               hasLoading={isSubmitting}
-              callBack={completeOnboarding}
+              callBack={handleNext}
             />
           </View>
         )}
@@ -1053,6 +1131,12 @@ const Quiz = () => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      <LoadingOverlay
+        isVisible={isGenerating}
+        // setLoadingState={(loading) => setIsSubmitting(loading)}
+        onFinished={completeOnboarding}
+      />
     </SafeAreaView>
   );
 };
