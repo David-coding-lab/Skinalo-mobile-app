@@ -19,6 +19,12 @@ interface AuthContextType {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  sendPasswordRecovery: (email: string) => Promise<void>;
+  updatePasswordRecovery: (
+    userId: string,
+    secret: string,
+    password: string,
+  ) => Promise<void>;
   setLoading: (loading: boolean) => void;
   setUser: (user: Models.User<AppPrefs> | null) => void;
   setIsFirstTimeUser: (isFirstTimeUser: "yes" | "no" | null) => void;
@@ -117,6 +123,36 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
     }
   }, []);
+
+  const sendPasswordRecovery = async (email: string) => {
+    setLoading(true);
+    try {
+      // Use the deep link URL for password recovery
+      const redirectUrl = "skinalo://reset-password";
+      await account.createRecovery(email, redirectUrl);
+    } catch (error) {
+      console.error("Error sending recovery email:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePasswordRecovery = async (
+    userId: string,
+    secret: string,
+    password: string,
+  ) => {
+    setLoading(true);
+    try {
+      await account.updateRecovery(userId, secret, password, password);
+    } catch (error) {
+      console.error("Error updating password:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const initialize = async () => {
@@ -222,6 +258,8 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser,
         setIsFirstTimeUser,
         refreshUser,
+        sendPasswordRecovery,
+        updatePasswordRecovery,
       }}
     >
       {appLoading || isFirstTimeUser === null ? (

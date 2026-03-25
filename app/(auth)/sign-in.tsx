@@ -173,6 +173,15 @@ const SignIn = () => {
                     {errors.password.message}
                   </Text>
                 )}
+                <View className="w-full flex-row justify-end items-center mt-2 px-1">
+                  <TouchableOpacity
+                    onPress={() => router.push("/(auth)/forgot-password")}
+                  >
+                    <Text className="font-publicSansMedium text-base text-primary">
+                      Forgot Password?
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View className="w-full items-center justify-center">
