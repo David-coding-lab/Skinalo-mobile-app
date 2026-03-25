@@ -1,7 +1,13 @@
 import { account } from "@/libs/appwrite";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, usePathname } from "expo-router";
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { ActivityIndicator } from "react-native";
 import { ID, Models } from "react-native-appwrite";
 
@@ -12,6 +18,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setUser: (user: Models.User<AppPrefs> | null) => void;
   setIsFirstTimeUser: (isFirstTimeUser: "yes" | "no" | null) => void;
@@ -87,7 +94,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setLoading(true);
     try {
       await account.deleteSessions();
@@ -99,7 +106,17 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const response = await account.get();
+      setUser(response as Models.User<AppPrefs>);
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+      setUser(null);
+    }
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
@@ -129,29 +146,68 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (appLoading || isFirstTimeUser === null) return;
 
     const timeout = setTimeout(() => {
+      // 1. Path Awareness
+      const isAuthPath = ["/welcome", "/sign-in", "/sign-up"].some((path) =>
+        pathname.startsWith(path),
+      );
+      const isOnboardingPath = pathname.includes("/Quiz");
+      const isSuccessPage = pathname.includes("/success");
+
+      // 2. Status Categorization
+      type UserStatus =
+        | "GUEST_FIRST_TIME"
+        | "GUEST_RETURNING"
+        | "AUTH_PENDING_ONBOARDING"
+        | "AUTH_COMPLETED";
+
+      let status: UserStatus;
+      const onboardingComplete = !!user?.prefs?.onboardingComplete;
+
+      console.log(onboardingComplete);
+
       if (!user) {
-        if (isFirstTimeUser === "yes") {
-          router.replace("/(auth)/welcome");
-        } else {
-          router.replace("/(auth)/sign-in");
-        }
+        status =
+          isFirstTimeUser === "yes" ? "GUEST_FIRST_TIME" : "GUEST_RETURNING";
       } else {
-        // ✅ Check if onboarding is complete
-        const onboardingComplete = user.prefs?.onboardingComplete === true;
+        status = onboardingComplete
+          ? "AUTH_COMPLETED"
+          : "AUTH_PENDING_ONBOARDING";
+      }
+      setLoading(true);
+      // 3. Navigation Decision Engine
+      switch (status) {
+        case "GUEST_FIRST_TIME":
+          if (!isAuthPath) {
+            router.replace("/(auth)/welcome");
+          }
+          setLoading(false);
+          break;
 
-        // Skip redirect if the user is already on the success screen
-        if (pathname.includes("/success")) return;
+        case "GUEST_RETURNING":
+          if (!isAuthPath) {
+            router.replace("/(auth)/sign-in");
+          }
+          setLoading(false);
+          break;
+        case "AUTH_PENDING_ONBOARDING":
+          if (!isOnboardingPath && !isSuccessPage) {
+            router.replace("/(onboarding)/Quiz");
+          }
+          setLoading(false);
+          break;
 
-        if (!onboardingComplete) {
-          router.replace("/(onboarding)/Quiz");
-        } else {
-          router.replace("/");
-        }
+        case "AUTH_COMPLETED":
+          // Prevent access to Auth or Onboarding (except the success confirmation page)
+          if (isAuthPath || (isOnboardingPath && !isSuccessPage)) {
+            router.replace("/");
+          }
+          setLoading(false);
+          break;
       }
     }, 10);
 
     return () => clearTimeout(timeout);
-  }, [user, appLoading, isFirstTimeUser, pathname]);
+  }, [user, appLoading, isFirstTimeUser, pathname, refreshUser, logout]);
 
   return (
     <AuthContext.Provider
@@ -165,6 +221,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading,
         setUser,
         setIsFirstTimeUser,
+        refreshUser,
       }}
     >
       {appLoading || isFirstTimeUser === null ? (

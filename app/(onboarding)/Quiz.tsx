@@ -1,5 +1,6 @@
 import LoadingOverlay from "@/components/LoadingOverlay";
 import PrimaryButton from "@/components/PrimaryButton";
+import { useAuth } from "@/context/AuthProvider";
 import { account } from "@/libs/appwrite";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,6 +22,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Quiz = () => {
+  const { refreshUser } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -273,11 +275,11 @@ const Quiz = () => {
 
       // Clear local persistence
       await AsyncStorage.removeItem("onboarding_data");
-      
-      // Delay slightly to ensure Appwrite state is synchronized
-      setTimeout(() => {
-        router.replace("/(onboarding)/success");
-      }, 100);
+
+      // Verify the update in AuthProvider before navigating
+      await refreshUser();
+
+      router.replace("/(onboarding)/success");
     } catch (e) {
       console.error("Failed to complete onboarding", e);
       setIsSubmitting(false);
