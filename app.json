@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "skinalomobileapp",
+    "scheme": "appwrite-callback-69babb040018e21dd179",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

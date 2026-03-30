@@ -1,4 +1,4 @@
-import { account } from "@/libs/appwrite";
+import { account, functions } from "@/libs/appwrite";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, usePathname } from "expo-router";
 import {
@@ -19,15 +19,32 @@ interface AuthContextType {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  sendPasswordRecovery: (email: string) => Promise<void>;
-  updatePasswordRecovery: (
-    userId: string,
-    secret: string,
-    password: string,
-  ) => Promise<void>;
+  sendEmailOTP: (email: string) => Promise<string>;
+  verifyEmailOTP: (userId: string, otp: string) => Promise<void>;
+  completePasswordReset: (password: string) => Promise<void>;
+  savePendingRecovery: (data: PendingRecovery) => Promise<void>;
+  getPendingRecovery: () => Promise<PendingRecovery | null>;
+  clearPendingRecovery: () => Promise<void>;
+  setRecoveryVerified: (data: VerifiedRecovery) => Promise<void>;
+  recoveryVerified: VerifiedRecovery | null;
+  clearRecoveryVerified: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setUser: (user: Models.User<AppPrefs> | null) => void;
   setIsFirstTimeUser: (isFirstTimeUser: "yes" | "no" | null) => void;
+}
+
+interface PendingRecovery {
+  email: string;
+  userId: string;
+  resendAvailableAt: number;
+  createdAt: number;
+}
+
+interface VerifiedRecovery {
+  email: string;
+  userId: string;
+  secret: string;
+  verifiedAt: number;
 }
 
 interface AppPrefs extends Models.Preferences {
@@ -36,11 +53,19 @@ interface AppPrefs extends Models.Preferences {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const PENDING_RECOVERY_KEY = "pendingRecovery";
+const VERIFIED_RECOVERY_KEY = "verifiedRecovery";
+const VERIFIED_RECOVERY_TTL_MS = 15 * 60 * 1000;
+const PASSWORD_RESET_FUNCTION_ID =
+  process.env.EXPO_PUBLIC_APPWRITE_PASSWORD_RESET_FUNCTION_ID || "";
+
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [appLoading, setAppLoading] = useState(true);
   const [user, setUser] = useState<Models.User<AppPrefs> | null>(null);
+  const [recoveryVerified, setRecoveryVerifiedState] =
+    useState<VerifiedRecovery | null>(null);
   // const [error, setError] = useState(null);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState<"yes" | "no" | null>(
     null,
@@ -124,30 +149,132 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  const sendPasswordRecovery = async (email: string) => {
+  const sendEmailOTP = async (email: string) => {
     setLoading(true);
     try {
-      // Use the deep link URL for password recovery
-      const redirectUrl = "skinalo://reset-password";
-      await account.createRecovery(email, redirectUrl);
+      // Create a login token (6-digit OTP)
+      // If the email exists, Appwrite ignores ID.unique() and returns the existing userId
+      const token = await account.createEmailToken({
+        userId: ID.unique(),
+        email: email,
+      });
+      // console.log("Email OTP sent successfully:", token);
+      return token.userId;
     } catch (error) {
-      console.error("Error sending recovery email:", error);
+      console.error("Error sending email OTP:", error);
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const updatePasswordRecovery = async (
-    userId: string,
-    secret: string,
-    password: string,
-  ) => {
+  const savePendingRecovery = useCallback(async (data: PendingRecovery) => {
+    await AsyncStorage.setItem(PENDING_RECOVERY_KEY, JSON.stringify(data));
+  }, []);
+
+  const getPendingRecovery = useCallback(async () => {
+    const raw = await AsyncStorage.getItem(PENDING_RECOVERY_KEY);
+    if (!raw) return null;
+
+    try {
+      const parsed = JSON.parse(raw) as PendingRecovery;
+      if (!parsed.email || !parsed.userId || !parsed.createdAt) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const clearPendingRecovery = useCallback(async () => {
+    await AsyncStorage.removeItem(PENDING_RECOVERY_KEY);
+  }, []);
+
+  const setRecoveryVerified = useCallback(async (data: VerifiedRecovery) => {
+    setRecoveryVerifiedState(data);
+    await AsyncStorage.setItem(VERIFIED_RECOVERY_KEY, JSON.stringify(data));
+  }, []);
+
+  const clearRecoveryVerified = useCallback(async () => {
+    setRecoveryVerifiedState(null);
+    await AsyncStorage.removeItem(VERIFIED_RECOVERY_KEY);
+  }, []);
+
+  const verifyEmailOTP = async (userId: string, secret: string) => {
     setLoading(true);
     try {
-      await account.updateRecovery(userId, secret, password, password);
-    } catch (error) {
-      console.error("Error updating password:", error);
+      // Clear any existing session before attempting to create a new one
+      try {
+        await account.deleteSession({
+          sessionId: "current",
+        });
+      } catch {
+        // Ignored. Delete throws an error if no session exists, which is expected state.
+      }
+
+      // Create a session using the OTP (secret)
+      await account.createSession({
+        userId,
+        secret: secret.trim(),
+      });
+
+      // Validate the just-created session before allowing password reset step.
+      await account.get();
+    } catch (error: any) {
+      console.error("Error verifying OTP:", error);
+      if (error?.type === "user_invalid_credentials") {
+        throw new Error("The 6-digit code is incorrect or has expired.");
+      }
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completePasswordReset = async (password: string) => {
+    setLoading(true);
+    try {
+      const now = Date.now();
+      const verified = recoveryVerified;
+
+      if (!verified || now - verified.verifiedAt > VERIFIED_RECOVERY_TTL_MS) {
+        throw new Error("Your reset session is no longer valid. Please verify your code again.");
+      }
+
+      // Ensure current session still exists before trying password update.
+      await account.get();
+
+      if (!PASSWORD_RESET_FUNCTION_ID) {
+        throw new Error(
+          "Password reset function is not configured. Set EXPO_PUBLIC_APPWRITE_PASSWORD_RESET_FUNCTION_ID.",
+        );
+      }
+
+      const execution = await functions.createExecution({
+        functionId: PASSWORD_RESET_FUNCTION_ID,
+        async: false,
+        body: JSON.stringify({
+          password,
+          userId: verified.userId,
+        }),
+      });
+
+      if (execution.status !== "completed" || execution.responseStatusCode >= 400) {
+        throw new Error("Password reset failed. Please try again.");
+      }
+
+      // After updating password, we check the user state
+      const currentUser = (await account.get()) as Models.User<AppPrefs>;
+      setUser(currentUser);
+      await clearPendingRecovery();
+      await clearRecoveryVerified();
+    } catch (error: any) {
+      console.error("Error completing password reset:", error);
+      // Map Appwrite error to a user-friendly message
+      if (error?.type === "user_invalid_credentials") {
+        throw new Error("Your reset session is no longer valid. Please verify your code again.");
+      }
       throw error;
     } finally {
       setLoading(false);
@@ -162,6 +289,20 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setIsFirstTimeUser("yes");
         } else {
           setIsFirstTimeUser("no");
+        }
+
+        const verifiedRaw = await AsyncStorage.getItem(VERIFIED_RECOVERY_KEY);
+        if (verifiedRaw) {
+          try {
+            const parsed = JSON.parse(verifiedRaw) as VerifiedRecovery;
+            if (Date.now() - parsed.verifiedAt <= VERIFIED_RECOVERY_TTL_MS) {
+              setRecoveryVerifiedState(parsed);
+            } else {
+              await AsyncStorage.removeItem(VERIFIED_RECOVERY_KEY);
+            }
+          } catch {
+            await AsyncStorage.removeItem(VERIFIED_RECOVERY_KEY);
+          }
         }
 
         const response = await account.get();
@@ -183,9 +324,14 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const timeout = setTimeout(() => {
       // 1. Path Awareness
-      const isAuthPath = ["/welcome", "/sign-in", "/sign-up"].some((path) =>
-        pathname.startsWith(path),
-      );
+      const isAuthPath = [
+        "/welcome",
+        "/sign-in",
+        "/sign-up",
+        "/forgot-password",
+        "/verify-otp",
+        "/new-password",
+      ].some((path) => pathname.startsWith(path));
       const isOnboardingPath = pathname.includes("/Quiz");
       const isSuccessPage = pathname.includes("/success");
 
@@ -198,8 +344,6 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       let status: UserStatus;
       const onboardingComplete = !!user?.prefs?.onboardingComplete;
-
-      console.log(onboardingComplete);
 
       if (!user) {
         status =
@@ -258,8 +402,15 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser,
         setIsFirstTimeUser,
         refreshUser,
-        sendPasswordRecovery,
-        updatePasswordRecovery,
+        sendEmailOTP,
+        verifyEmailOTP,
+        completePasswordReset,
+        savePendingRecovery,
+        getPendingRecovery,
+        clearPendingRecovery,
+        setRecoveryVerified,
+        recoveryVerified,
+        clearRecoveryVerified,
       }}
     >
       {appLoading || isFirstTimeUser === null ? (

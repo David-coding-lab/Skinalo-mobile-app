@@ -1,9 +1,9 @@
 import PrimaryButton from "@/components/PrimaryButton";
 import { useAuth } from "@/context/AuthProvider";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Ionicons } from "@expo/vector-icons";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Keyboard,
@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 
-const resetPasswordSchema = z
+const passwordSchema = z
   .object({
     password: z.string().min(8, "Password must be at least 8 characters long"),
     confirmPassword: z.string(),
@@ -28,42 +28,84 @@ const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
-type FormData = z.infer<typeof resetPasswordSchema>;
+type PasswordFormData = z.infer<typeof passwordSchema>;
 
-const ResetPassword = () => {
-  const { updatePasswordRecovery, loading } = useAuth();
-  const { userId, secret } = useLocalSearchParams<{
-    userId: string;
-    secret: string;
+const NewPassword = () => {
+  const {
+    completePasswordReset,
+    recoveryVerified,
+    clearPendingRecovery,
+    clearRecoveryVerified,
+    loading,
+  } = useAuth();
+  const { email } = useLocalSearchParams<{
+    email?: string;
   }>();
-  const [isSuccess, setIsSuccess] = useState(false);
+
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(resetPasswordSchema),
+  } = useForm<PasswordFormData>({
+    resolver: zodResolver(passwordSchema),
   });
 
-  const handleReset = async (data: FormData) => {
-    if (!userId || !secret) {
-      setErrorStatus("Invalid link details. Please request a new link.");
+  useEffect(() => {
+    setIsCheckingAccess(false);
+  }, []);
+
+  const handleUpdatePassword = async (data: PasswordFormData) => {
+    if (!recoveryVerified || isSubmitting || loading) {
       return;
     }
 
     try {
+      setIsSubmitting(true);
       setErrorStatus(null);
-      await updatePasswordRecovery(userId, secret, data.password);
+      await completePasswordReset(data.password);
       setIsSuccess(true);
     } catch (error: any) {
-      console.error("Error resetting password:", error);
+      console.error("Error updating password:", error);
       setErrorStatus(
-        error.message || "Failed to reset password. Please try again."
+        error.message || "Failed to update password. Please try again.",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  if (isCheckingAccess) {
+    return <SafeAreaView className="flex-1 bg-pageBg" />;
+  }
+
+  if (!recoveryVerified) {
+    return (
+      <SafeAreaView className="flex-1 bg-pageBg px-6 items-center justify-center">
+        <View className="w-20 h-20 bg-red-100 rounded-full items-center justify-center mb-6">
+          <Ionicons name="alert-circle" size={40} color="#991b1b" />
+        </View>
+        <Text className="font-latoBlack text-3xl text-center text-textDark mb-4">
+          Verification Required
+        </Text>
+        <Text className="font-publicSansRegular text-lg text-center text-textGray mb-10 leading-6">
+          Please verify your reset code before setting a new password.
+        </Text>
+        <PrimaryButton
+          text="Go to Verify Code"
+          callBack={() =>
+            router.replace({
+              pathname: "/(auth)/forgot-password",
+            })
+          }
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (isSuccess) {
     return (
@@ -72,35 +114,12 @@ const ResetPassword = () => {
           <Ionicons name="checkmark-circle" size={40} color="#065f46" />
         </View>
         <Text className="font-latoBlack text-3xl text-center text-textDark mb-4">
-          Password Reset Complete
+          Password Updated
         </Text>
         <Text className="font-publicSansRegular text-lg text-center text-textGray mb-10 leading-6">
-          Your password has been successfully updated. You can now use your new password to sign in.
+          Your password was changed successfully. You are now signed in.
         </Text>
-        <PrimaryButton
-          text="Continue to Sign In"
-          callBack={() => router.replace("/(auth)/sign-in")}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  if (!userId || !secret) {
-    return (
-      <SafeAreaView className="flex-1 bg-pageBg px-6 items-center justify-center">
-        <View className="w-20 h-20 bg-red-100 rounded-full items-center justify-center mb-6">
-          <Ionicons name="alert-circle" size={40} color="#991b1b" />
-        </View>
-        <Text className="font-latoBlack text-3xl text-center text-textDark mb-4">
-          Invalid Request
-        </Text>
-        <Text className="font-publicSansRegular text-lg text-center text-textGray mb-10 leading-6">
-          The reset password link is either invalid or has expired. Please request a new one.
-        </Text>
-        <PrimaryButton
-          text="Back to Request link"
-          callBack={() => router.replace("/(auth)/forgot-password")}
-        />
+        <PrimaryButton text="Continue" callBack={() => router.replace("/")} />
       </SafeAreaView>
     );
   }
@@ -123,7 +142,8 @@ const ResetPassword = () => {
                   Create New Password
                 </Text>
                 <Text className="mt-4 font-publicSansRegular text-xl text-textGray leading-7">
-                  Please enter your new password below. Ensure it is at least 8 characters long.
+                  Set a new password for{" "}
+                  {email || recoveryVerified.email || "your account"}.
                 </Text>
               </View>
 
@@ -136,7 +156,9 @@ const ResetPassword = () => {
                   </View>
                 )}
 
-                <Text className="font-publicSansMedium text-lg">New Password</Text>
+                <Text className="font-publicSansMedium text-lg">
+                  New Password
+                </Text>
                 <Controller
                   control={control}
                   name="password"
@@ -152,10 +174,14 @@ const ResetPassword = () => {
                   )}
                 />
                 {errors.password && (
-                  <Text className="text-red-500 mt-1 ml-1">{errors.password.message}</Text>
+                  <Text className="text-red-500 mt-1 ml-1">
+                    {errors.password.message}
+                  </Text>
                 )}
 
-                <Text className="font-publicSansMedium text-lg mt-6">Confirm Password</Text>
+                <Text className="font-publicSansMedium text-lg mt-6">
+                  Confirm Password
+                </Text>
                 <Controller
                   control={control}
                   name="confirmPassword"
@@ -171,16 +197,32 @@ const ResetPassword = () => {
                   )}
                 />
                 {errors.confirmPassword && (
-                  <Text className="text-red-500 mt-1 ml-1">{errors.confirmPassword.message}</Text>
+                  <Text className="text-red-500 mt-1 ml-1">
+                    {errors.confirmPassword.message}
+                  </Text>
                 )}
               </View>
 
               <View className="mt-auto">
                 <PrimaryButton
                   text="Update Password"
-                  callBack={handleSubmit(handleReset)}
-                  hasLoading={loading}
+                  callBack={handleSubmit(handleUpdatePassword)}
+                  hasLoading={loading || isSubmitting}
+                  disabled={loading || isSubmitting}
                 />
+              </View>
+
+              <View className="items-center mt-2 mb-6">
+                <Text
+                  className="text-primary font-publicSansMedium"
+                  onPress={async () => {
+                    await clearPendingRecovery();
+                    await clearRecoveryVerified();
+                    router.replace("/(auth)/forgot-password");
+                  }}
+                >
+                  Start over with another email
+                </Text>
               </View>
             </View>
           </TouchableWithoutFeedback>
@@ -190,4 +232,4 @@ const ResetPassword = () => {
   );
 };
 
-export default ResetPassword;
+export default NewPassword;

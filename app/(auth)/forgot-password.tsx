@@ -1,7 +1,7 @@
 import PrimaryButton from "@/components/PrimaryButton";
 import { useAuth } from "@/context/AuthProvider";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Ionicons } from "@expo/vector-icons";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -26,8 +26,7 @@ const forgotPasswordSchema = z.object({
 type FormData = z.infer<typeof forgotPasswordSchema>;
 
 const ForgotPassword = () => {
-  const { sendPasswordRecovery, loading } = useAuth();
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const { sendEmailOTP, savePendingRecovery, loading } = useAuth();
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
 
   const {
@@ -38,38 +37,30 @@ const ForgotPassword = () => {
     resolver: zodResolver(forgotPasswordSchema),
   });
 
-  const handleSendLink = async (data: FormData) => {
+  const handleSendOTP = async (data: FormData) => {
     try {
       setErrorStatus(null);
-      await sendPasswordRecovery(data.email);
-      setIsSubmitted(true);
+      const id = await sendEmailOTP(data.email);
+      await savePendingRecovery({
+        email: data.email,
+        userId: id,
+        resendAvailableAt: Date.now() + 60_000,
+        createdAt: Date.now(),
+      });
+      router.push({
+        pathname: "/(auth)/verify-otp",
+        params: {
+          email: data.email,
+          userId: id,
+        },
+      });
     } catch (error: any) {
-      console.error("Error sending recovery link:", error);
+      console.error("Error sending OTP:", error);
       setErrorStatus(
-        error.message || "Failed to send recovery email. Please try again."
+        error.message || "Failed to send reset code. Please try again.",
       );
     }
   };
-
-  if (isSubmitted) {
-    return (
-      <SafeAreaView className="flex-1 bg-pageBg px-6 items-center justify-center">
-        <View className="w-20 h-20 bg-emerald-100 rounded-full items-center justify-center mb-6">
-          <Ionicons name="mail-unread" size={40} color="#065f46" />
-        </View>
-        <Text className="font-latoBlack text-3xl text-center text-textDark mb-4">
-          Check Your Email
-        </Text>
-        <Text className="font-publicSansRegular text-lg text-center text-textGray mb-10 leading-6">
-          We've sent a password reset link to your email address. Please follow the instructions to reset your password.
-        </Text>
-        <PrimaryButton
-          text="Back to Sign In"
-          callBack={() => router.replace("/(auth)/sign-in")}
-        />
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView className="flex-1 bg-pageBg">
@@ -96,7 +87,8 @@ const ForgotPassword = () => {
                   Forgot Password?
                 </Text>
                 <Text className="mt-4 font-publicSansRegular text-xl text-textGray leading-7">
-                  Don't worry! It happens. Please enter the email address associated with your account.
+                  Don&apos;t worry! It happens. Please enter the email address
+                  associated with your account.
                 </Text>
               </View>
 
@@ -109,7 +101,9 @@ const ForgotPassword = () => {
                   </View>
                 )}
 
-                <Text className="font-publicSansMedium text-lg">Email Address</Text>
+                <Text className="font-publicSansMedium text-lg">
+                  Email Address
+                </Text>
                 <Controller
                   control={control}
                   name="email"
@@ -126,14 +120,16 @@ const ForgotPassword = () => {
                   )}
                 />
                 {errors.email && (
-                  <Text className="text-red-500 mt-1 ml-1">{errors.email.message}</Text>
+                  <Text className="text-red-500 mt-1 ml-1">
+                    {errors.email.message}
+                  </Text>
                 )}
               </View>
 
               <View className="mt-auto">
                 <PrimaryButton
-                  text="Send Reset Link"
-                  callBack={handleSubmit(handleSendLink)}
+                  text="Send Reset Code"
+                  callBack={handleSubmit(handleSendOTP)}
                   hasLoading={loading}
                 />
               </View>
