@@ -239,15 +239,14 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const verified = recoveryVerified;
 
       if (!verified || now - verified.verifiedAt > VERIFIED_RECOVERY_TTL_MS) {
-        throw new Error("Your reset session is no longer valid. Please verify your code again.");
+        throw new Error(
+          "Your reset session is no longer valid. Please verify your code again.",
+        );
       }
-
-      // Ensure current session still exists before trying password update.
-      await account.get();
 
       if (!PASSWORD_RESET_FUNCTION_ID) {
         throw new Error(
-          "Password reset function is not configured. Set EXPO_PUBLIC_APPWRITE_PASSWORD_RESET_FUNCTION_ID.",
+          "Password reset function is not configured. Set Configurations.",
         );
       }
 
@@ -260,11 +259,20 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }),
       });
 
-      if (execution.status !== "completed" || execution.responseStatusCode >= 400) {
+      if (
+        execution.status !== "completed" ||
+        execution.responseStatusCode >= 400
+      ) {
         throw new Error("Password reset failed. Please try again.");
       }
 
-      // After updating password, we check the user state
+      // Password updates can invalidate OTP/temporary sessions. Start a fresh
+      // session using the new credentials to keep the user signed in.
+      await account.createEmailPasswordSession({
+        email: verified.email,
+        password,
+      });
+
       const currentUser = (await account.get()) as Models.User<AppPrefs>;
       setUser(currentUser);
       await clearPendingRecovery();
@@ -273,7 +281,14 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Error completing password reset:", error);
       // Map Appwrite error to a user-friendly message
       if (error?.type === "user_invalid_credentials") {
-        throw new Error("Your reset session is no longer valid. Please verify your code again.");
+        throw new Error(
+          "Your reset session is no longer valid. Please verify your code again.",
+        );
+      }
+      if (error?.code === 401) {
+        throw new Error(
+          "Password changed, but session expired. Please sign in with your new password.",
+        );
       }
       throw error;
     } finally {
@@ -330,8 +345,8 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         "/sign-up",
         "/forgot-password",
         "/verify-otp",
-        "/new-password",
       ].some((path) => pathname.startsWith(path));
+      const isNewPasswordPath = pathname.startsWith("/new-password");
       const isOnboardingPath = pathname.includes("/Quiz");
       const isSuccessPage = pathname.includes("/success");
 
@@ -357,14 +372,14 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // 3. Navigation Decision Engine
       switch (status) {
         case "GUEST_FIRST_TIME":
-          if (!isAuthPath) {
+          if (!isAuthPath && !isNewPasswordPath) {
             router.replace("/(auth)/welcome");
           }
           setLoading(false);
           break;
 
         case "GUEST_RETURNING":
-          if (!isAuthPath) {
+          if (!isAuthPath && !isNewPasswordPath) {
             router.replace("/(auth)/sign-in");
           }
           setLoading(false);

@@ -83,9 +83,26 @@ const NewPassword = () => {
     return <SafeAreaView className="flex-1 bg-pageBg" />;
   }
 
-  if (!recoveryVerified) {
+  if (isSuccess) {
     return (
-      <SafeAreaView className="flex-1 bg-pageBg px-6 items-center justify-center">
+      <SafeAreaView className="flex-1 bg-pageBg pt-5 px-6 items-center justify-center">
+        <View className="w-20 h-20 bg-emerald-100 rounded-full items-center justify-center mb-6">
+          <Ionicons name="checkmark-circle" size={40} color="#065f46" />
+        </View>
+        <Text className="font-latoBlack text-3xl text-center text-textDark mb-4">
+          Password Updated
+        </Text>
+        <Text className="font-publicSansRegular text-lg text-center text-textGray mb-10 leading-6">
+          Your password was changed successfully. You are now signed in.
+        </Text>
+        <PrimaryButton text="Continue" callBack={() => router.replace("/")} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!recoveryVerified && !isSubmitting) {
+    return (
+      <SafeAreaView className="flex-1 bg-pageBg pt-5 px-6 items-center justify-center">
         <View className="w-20 h-20 bg-red-100 rounded-full items-center justify-center mb-6">
           <Ionicons name="alert-circle" size={40} color="#991b1b" />
         </View>
@@ -107,25 +124,8 @@ const NewPassword = () => {
     );
   }
 
-  if (isSuccess) {
-    return (
-      <SafeAreaView className="flex-1 bg-pageBg px-6 items-center justify-center">
-        <View className="w-20 h-20 bg-emerald-100 rounded-full items-center justify-center mb-6">
-          <Ionicons name="checkmark-circle" size={40} color="#065f46" />
-        </View>
-        <Text className="font-latoBlack text-3xl text-center text-textDark mb-4">
-          Password Updated
-        </Text>
-        <Text className="font-publicSansRegular text-lg text-center text-textGray mb-10 leading-6">
-          Your password was changed successfully. You are now signed in.
-        </Text>
-        <PrimaryButton text="Continue" callBack={() => router.replace("/")} />
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView className="flex-1 bg-pageBg">
+    <SafeAreaView className="flex-1 bg-pageBg pt-5">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
@@ -143,7 +143,7 @@ const NewPassword = () => {
                 </Text>
                 <Text className="mt-4 font-publicSansRegular text-xl text-textGray leading-7">
                   Set a new password for{" "}
-                  {email || recoveryVerified.email || "your account"}.
+                  {email || recoveryVerified?.email || "your account"}.
                 </Text>
               </View>
 
