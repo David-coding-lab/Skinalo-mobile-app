@@ -4,9 +4,11 @@ import { useAuth } from "@/context/AuthProvider";
 import { account } from "@/libs/appwrite";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   BackHandler,
   FlatList,
   Image,
@@ -26,9 +28,50 @@ const Quiz = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAgeModalVisible, setIsAgeModalVisible] = useState(false);
   const [showError, setShowError] = useState(false);
+
+  const handleDetectLocation = async () => {
+    try {
+      setIsDetectingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Please allow location access to detect your city and country.",
+        );
+        setIsDetectingLocation(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (address) {
+        const city = address.city || address.region || address.district || "";
+        const country = address.country || "";
+        const locationString =
+          city && country ? `${city}, ${country}` : city || country || "";
+
+        if (locationString) {
+          setFormData({ ...formData, location: locationString });
+        } else {
+          Alert.alert("Error", "Could not determine your location address.");
+        }
+      }
+    } catch (error) {
+      console.error("Location detection error:", error);
+      Alert.alert("Error", "An error occurred while detecting your location.");
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
 
   const questionStyles =
     "text-3xl font-latoBlack text-textDark mt-4 leading-tight";
@@ -530,16 +573,22 @@ const Quiz = () => {
               <View className="flex-row items-center bg-gray-50 rounded-xl px-3 py-1">
                 <Ionicons name="location-outline" size={20} color="#475569" />
                 <TextInput
-                  placeholder="Search for city or country"
-                  className="flex-1 h-12 ml-2 font-latoRegular"
+                  placeholder="Your city and country"
+                  className="flex-1 h-12 ml-2 font-latoRegular text-textDark"
                   value={formData.location}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, location: text })
-                  }
+                  editable={false}
                 />
-                <TouchableOpacity className="bg-emerald-50 px-3 py-2 rounded-lg">
+                <TouchableOpacity
+                  className="bg-emerald-50 px-3 py-2 rounded-lg"
+                  onPress={handleDetectLocation}
+                  disabled={isDetectingLocation}
+                >
                   <Text className="text-primary font-publicSansBold text-xs">
-                    Detect
+                    {isDetectingLocation
+                      ? "Detecting..."
+                      : formData.location
+                        ? "Detected"
+                        : "Detect"}
                   </Text>
                 </TouchableOpacity>
               </View>
