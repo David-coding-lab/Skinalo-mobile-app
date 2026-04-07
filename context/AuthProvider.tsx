@@ -49,6 +49,8 @@ interface VerifiedRecovery {
 
 interface AppPrefs extends Models.Preferences {
   onboardingComplete?: boolean;
+  skinTone?: string;
+  skinFeel?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
