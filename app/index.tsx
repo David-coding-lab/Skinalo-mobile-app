@@ -99,6 +99,12 @@ export default function Index() {
     },
   ];
 
+  const todaySkinTip = {
+    title: "The Importance of Vitamin C",
+    description:
+      "Vitamin C brightens skin, fights aging, and helps protect against sun damage.",
+  };
+
   // Guard to prevent any rendering of the home content while we are still loading/redirecting
   if (loading || !user) return null;
 
@@ -247,6 +253,32 @@ export default function Index() {
         </View>
 
         <PremiumFeatureCarousel features={premiumFeatures} />
+
+        <View className="mt-8 w-full px-5 pb-12">
+          <Text className="font-publicSansBold text-xl text-textDark">
+            Today&apos;s Skin Tip
+          </Text>
+
+          <View
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`${todaySkinTip.title}. ${todaySkinTip.description}`}
+            className="mt-4 flex-row items-center gap-4 rounded-2xl border border-[#E6ECE8] bg-white px-5 py-6"
+          >
+            <View className="h-[78px] w-[78px] items-center justify-center rounded-2xl bg-[#F2F5F3]">
+              <Ionicons name="sunny-outline" size={35} color="#82CBAA" />
+            </View>
+
+            <View className="flex-1">
+              <Text className="font-publicSansBold text-xl text-textDark">
+                {todaySkinTip.title}
+              </Text>
+              <Text className="mt-1 font-publicSansRegular text-base leading-7 text-textGray">
+                {todaySkinTip.description}
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

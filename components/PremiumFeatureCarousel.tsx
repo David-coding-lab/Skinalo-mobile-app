@@ -1,13 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    AppState,
-    FlatList,
-    Pressable,
-    Text,
-    View,
-    useWindowDimensions,
-    type NativeScrollEvent,
-    type NativeSyntheticEvent,
+  AppState,
+  FlatList,
+  Pressable,
+  Text,
+  View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 
 import type { PremiumFeature } from "@/types/premiumFeature";
@@ -84,14 +85,22 @@ export default function PremiumFeatureCarousel({
   const cardWidth = Math.max(width - 24, 280);
 
   return (
-    <View className="mt-[18px] w-full border-y pb-3 pt-2">
-      <View className="px-4">
-        <Text className="font-publicSansExtraBold text-xs leading-[14px] tracking-[1px] text-[#8F00FF]">
-          PREMIUM
-        </Text>
-        <Text className="mt-0.5 font-publicSansBold text-[36px] leading-[39px] text-[#F8FAFC]">
-          Skinalo Pro
-        </Text>
+    <View className="mt-[18px] w-full pb-3 pt-2">
+      <View className="flex-row items-center justify-between px-4 pb-5">
+        <View>
+          <Text className="font-publicSansExtraBold text-xs leading-[14px] tracking-[1px] text-premiumColors-dark">
+            PREMIUM
+          </Text>
+          <Text className="mt-0.5 font-publicSansBold text-2xl leading-[39px] text-textDark">
+            Skinalo Pro
+          </Text>
+        </View>
+        <View className="flex-row items-center gap-1.5 rounded-md bg-[rgba(143,0,255,0.1)] px-3 py-1.5">
+          <Ionicons name="flash" size={14} color="#8F00FF" />
+          <Text className="font-publicSansSemiBold text-sm text-premiumColors-dark">
+            Packages
+          </Text>
+        </View>
       </View>
 
       <FlatList
@@ -129,7 +138,7 @@ export default function PremiumFeatureCarousel({
               accessibilityLabel={`Go to ${feature.name}`}
               className={
                 active
-                  ? "h-1.5 w-5 rounded-full bg-[#8F00FF]"
+                  ? "h-1.5 w-5 rounded-full bg-premiumColors-light"
                   : "h-1.5 w-1.5 rounded-full bg-[rgba(255,255,255,0.45)]"
               }
             />

@@ -17,28 +17,26 @@ module.exports = {
         textGray: "#475569",
         textLightGray: "#94A3B8",
         lightBlue: "#136DEC",
-      },
-
-      skinColors: {
-        darkest: "#312529",
-        deep: "#7D4E2E",
-        olive: "#A57144",
-        medium: "#E1B183",
-        fair: "#F3D9C1",
-        light: "#F9EBE0",
-      },
-
-      premiumColors: {
-        dark: "#4B0082",
-        light: "#8F00FF",
-      },
-      analysisColors: {
-        positive: "#136DEC",
-        positiveOpacity: "rgba(19, 109, 236, 0.05)",
-        negative: "#E11D48",
-        negativeOpacity: "rgba(225, 29, 72, 0.05)",
-        neutral: "#F59E0B",
-        neutralOpacity: "rgba(251, 191, 36, 0.05)",
+        skinColors: {
+          darkest: "#312529",
+          deep: "#7D4E2E",
+          olive: "#A57144",
+          medium: "#E1B183",
+          fair: "#F3D9C1",
+          light: "#F9EBE0",
+        },
+        premiumColors: {
+          dark: "#4B0082",
+          light: "#8F00FF",
+        },
+        analysisColors: {
+          positive: "#136DEC",
+          positiveOpacity: "rgba(19, 109, 236, 0.05)",
+          negative: "#E11D48",
+          negativeOpacity: "rgba(225, 29, 72, 0.05)",
+          neutral: "#F59E0B",
+          neutralOpacity: "rgba(251, 191, 36, 0.05)",
+        },
       },
       fontFamily: {
         latoRegular: ["Lato-Regular"],
