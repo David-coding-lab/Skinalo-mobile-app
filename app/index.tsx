@@ -167,6 +167,8 @@ export default function Index() {
   const bottomNavShadowColor = "#64748B";
   const bottomNavActiveColor = "#2D6A4F";
   const bottomNavInactiveColor = "#8FA1B3";
+  const isBottomNavItemActive = (pathPrefix: string) =>
+    pathPrefix === "/" ? pathname === "/" : pathname.startsWith(pathPrefix);
 
   // Guard to prevent any rendering of the home content while we are still loading/redirecting
   if (loading || !user) return null;
@@ -376,40 +378,37 @@ export default function Index() {
             className="h-full flex-row items-center justify-center"
             style={{ gap: bottomNavItemGap }}
           >
-            {bottomNavItems.map((item) => (
-              (() => {
-                const isActive =
-                  item.pathPrefix === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(item.pathPrefix);
+            {bottomNavItems.map((item) => {
+              const isActive = isBottomNavItemActive(item.pathPrefix);
 
-                return (
-              <View
-                key={item.key}
-                accessible
-                accessibilityRole="tab"
-                accessibilityLabel={item.label}
-                className="w-[72px] items-center"
-              >
-                <Ionicons
-                  name={item.icon}
-                  size={22}
-                  color={
-                    isActive ? bottomNavActiveColor : bottomNavInactiveColor
-                  }
-                />
-                <Text
-                  className="mt-1 font-publicSansSemiBold text-xs"
-                  style={{
-                    color: isActive ? bottomNavActiveColor : bottomNavInactiveColor,
-                  }}
+              return (
+                <View
+                  key={item.key}
+                  accessible
+                  accessibilityRole="tab"
+                  accessibilityLabel={item.label}
+                  className="w-[72px] items-center"
                 >
-                  {item.label}
-                </Text>
-              </View>
-                );
-              })()
-            ))}
+                  <Ionicons
+                    name={item.icon}
+                    size={22}
+                    color={
+                      isActive ? bottomNavActiveColor : bottomNavInactiveColor
+                    }
+                  />
+                  <Text
+                    className="mt-1 font-publicSansSemiBold text-xs"
+                    style={{
+                      color: isActive
+                        ? bottomNavActiveColor
+                        : bottomNavInactiveColor,
+                    }}
+                  >
+                    {item.label}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </View>
       </View>
