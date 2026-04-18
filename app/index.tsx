@@ -6,7 +6,7 @@ import type { LocalProductRecommendation } from "@/types/localProductRecommendat
 import type { PremiumFeature } from "@/types/premiumFeature";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { usePathname } from "expo-router";
+import { router, usePathname } from "expo-router";
 import type { ComponentProps } from "react";
 import {
   Image,
@@ -225,6 +225,11 @@ export default function Index() {
               <TouchableOpacity
                 activeOpacity={0.9}
                 className="flex-1 rounded-[28px] overflow-hidden"
+                onPress={() => {
+                  router.push("/Products");
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Scan a product"
               >
                 <BlurView
                   intensity={28}
