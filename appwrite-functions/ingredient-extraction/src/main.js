@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_TIMEOUT_MS = 15000;
 const DEFAULT_MAX_IMAGE_BYTES = 6 * 1024 * 1024;
