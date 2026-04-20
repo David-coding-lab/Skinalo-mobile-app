@@ -135,10 +135,35 @@ function getIngredientsFromGeminiText(text) {
   return sanitizeIngredients(parsed.ingredients);
 }
 
-export default async ({ req, res, error }) => {
+function truncateText(value, maxLength = 220) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}...`;
+}
+
+export default async ({ req, res, log, error }) => {
+  const logger = typeof log === "function" ? log : console.log;
+  const errorLogger = typeof error === "function" ? error : console.error;
+  const traceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   try {
+    logger(
+      `[ingredient-extraction:${traceId}] start method=${req?.method || "unknown"} path=${req?.path || "/"}`,
+    );
+
     const sessionUserId = getSessionUserId(req.headers);
+    logger(
+      `[ingredient-extraction:${traceId}] auth check hasSessionUserId=${Boolean(sessionUserId)}`,
+    );
+
     if (!sessionUserId) {
+      logger(`[ingredient-extraction:${traceId}] rejected: unauthorized`);
       return res.json(
         { ok: false, errorCode: "UNAUTHORIZED", error: "Unauthorized" },
         401,
@@ -147,8 +172,12 @@ export default async ({ req, res, error }) => {
 
     let payload;
     try {
+      logger(
+        `[ingredient-extraction:${traceId}] parsing body type=${typeof req?.body} length=${typeof req?.body === "string" ? req.body.length : 0}`,
+      );
       payload = parseBody(req.body);
     } catch {
+      logger(`[ingredient-extraction:${traceId}] rejected: invalid payload`);
       return res.json(
         {
           ok: false,
@@ -162,8 +191,12 @@ export default async ({ req, res, error }) => {
     const imageBase64 = payload?.imageBase64;
     const mimeType = payload?.mimeType || "image/jpeg";
     const selectedCategory = payload?.selectedCategory || null;
+    logger(
+      `[ingredient-extraction:${traceId}] payload parsed mimeType=${mimeType} hasImage=${typeof imageBase64 === "string" && imageBase64.length > 0} imageLength=${typeof imageBase64 === "string" ? imageBase64.length : 0} selectedCategory=${selectedCategory || "none"}`,
+    );
 
     if (!imageBase64 || typeof imageBase64 !== "string") {
+      logger(`[ingredient-extraction:${traceId}] rejected: missing imageBase64`);
       return res.json(
         {
           ok: false,
@@ -175,6 +208,9 @@ export default async ({ req, res, error }) => {
     }
 
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+      logger(
+        `[ingredient-extraction:${traceId}] rejected: invalid mimeType=${mimeType}`,
+      );
       return res.json(
         {
           ok: false,
@@ -189,8 +225,12 @@ export default async ({ req, res, error }) => {
       process.env.INGREDIENT_MAX_IMAGE_BYTES || DEFAULT_MAX_IMAGE_BYTES,
     );
     const imageBytes = Buffer.byteLength(imageBase64, "base64");
+    logger(
+      `[ingredient-extraction:${traceId}] image size decodedBytes=${imageBytes} maxBytes=${maxImageBytes}`,
+    );
 
     if (!Number.isFinite(imageBytes) || imageBytes <= 0) {
+      logger(`[ingredient-extraction:${traceId}] rejected: invalid decoded image`);
       return res.json(
         {
           ok: false,
@@ -202,6 +242,7 @@ export default async ({ req, res, error }) => {
     }
 
     if (imageBytes > maxImageBytes) {
+      logger(`[ingredient-extraction:${traceId}] rejected: image too large`);
       return res.json(
         {
           ok: false,
@@ -216,8 +257,12 @@ export default async ({ req, res, error }) => {
     const geminiModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
     const systemPrompt =
       process.env.GEMINI_SYSTEM_PROMPT || FALLBACK_SYSTEM_PROMPT;
+    logger(
+      `[ingredient-extraction:${traceId}] config model=${geminiModel} hasApiKey=${Boolean(geminiApiKey)} hasSystemPrompt=${Boolean(systemPrompt)}`,
+    );
 
     if (!geminiApiKey) {
+      logger(`[ingredient-extraction:${traceId}] rejected: missing GEMINI_API_KEY`);
       return res.json(
         {
           ok: false,
@@ -265,6 +310,10 @@ export default async ({ req, res, error }) => {
     const timeoutMs = Number(
       process.env.GEMINI_REQUEST_TIMEOUT_MS || DEFAULT_TIMEOUT_MS,
     );
+    logger(
+      `[ingredient-extraction:${traceId}] sending request to Gemini timeoutMs=${timeoutMs}`,
+    );
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -284,12 +333,24 @@ export default async ({ req, res, error }) => {
 
     const rawResponse = await geminiResponse.text();
     const parsedRawResponse = parseJsonSafe(rawResponse);
+    logger(
+      `[ingredient-extraction:${traceId}] Gemini response status=${geminiResponse.status} ok=${geminiResponse.ok} rawLength=${rawResponse.length}`,
+    );
 
     if (!geminiResponse.ok) {
       const mapped = mapGeminiError(
         geminiResponse.status,
         parsedRawResponse?.error?.message,
       );
+      logger(
+        `[ingredient-extraction:${traceId}] Gemini error mappedCode=${mapped.errorCode} mappedMessage=${truncateText(mapped.error)}`,
+      );
+
+      if (parsedRawResponse?.error?.message) {
+        logger(
+          `[ingredient-extraction:${traceId}] Gemini error rawMessage=${truncateText(parsedRawResponse.error.message)}`,
+        );
+      }
 
       return res.json(
         {
@@ -303,10 +364,19 @@ export default async ({ req, res, error }) => {
 
     const candidateText =
       parsedRawResponse?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    logger(
+      `[ingredient-extraction:${traceId}] candidate text length=${candidateText.length}`,
+    );
 
     const ingredients = getIngredientsFromGeminiText(candidateText);
+    logger(
+      `[ingredient-extraction:${traceId}] parsed ingredients count=${ingredients.length}`,
+    );
 
     if (ingredients.length === 0) {
+      logger(
+        `[ingredient-extraction:${traceId}] rejected: no ingredients found after parsing`,
+      );
       return res.json(
         {
           ok: false,
@@ -330,7 +400,12 @@ export default async ({ req, res, error }) => {
       200,
     );
   } catch (err) {
+    errorLogger(
+      `[ingredient-extraction:${traceId}] catch errName=${err?.name || "unknown"} errMessage=${truncateText(err?.message || String(err))}`,
+    );
+
     if (err?.name === "AbortError") {
+      logger(`[ingredient-extraction:${traceId}] aborted by timeout`);
       return res.json(
         {
           ok: false,
@@ -341,7 +416,7 @@ export default async ({ req, res, error }) => {
       );
     }
 
-    error(`Ingredient extraction function failed: ${err?.message || err}`);
+    errorLogger(`Ingredient extraction function failed: ${err?.message || err}`);
     return res.json(
       {
         ok: false,
