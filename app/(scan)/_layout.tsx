@@ -71,10 +71,35 @@ export default function ScanLayout() {
           }}
         />
         <Stack.Screen
+          name="ImagePreview"
+          options={{
+            headerShown: false,
+            animation: "fade_from_bottom",
+          }}
+        />
+        <Stack.Screen
           name="ManualInput"
           options={{
             title: "Manual Input",
             animation: "fade_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="analyzing"
+          options={{
+            title: "Analyzing",
+            animation: "fade",
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.back()}
+                hitSlop={10}
+                style={{ paddingHorizontal: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={24} color="#0F172A" />
+              </Pressable>
+            ),
           }}
         />
       </Stack>

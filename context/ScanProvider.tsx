@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { ProductCategory } from "@/types/productCategory";
@@ -6,6 +6,14 @@ import type { ProductCategory } from "@/types/productCategory";
 type ScanContextValue = {
   selectedCategory: ProductCategory | null;
   setSelectedCategory: (category: ProductCategory | null) => void;
+  capturedImageUri: string | null;
+  setCapturedImageUri: (uri: string | null) => void;
+  extractedIngredients: string[];
+  setExtractedIngredients: (ingredients: string[]) => void;
+  clearExtractedIngredients: () => void;
+  extractionError: string | null;
+  setExtractionError: (error: string | null) => void;
+  clearCapturedImage: () => void;
   clearScanSession: () => void;
 };
 
@@ -18,14 +26,67 @@ type ScanProviderProps = {
 export function ScanProvider({ children }: ScanProviderProps) {
   const [selectedCategory, setSelectedCategory] =
     useState<ProductCategory | null>(null);
+  const [capturedImageUri, setCapturedImageUriState] = useState<string | null>(
+    null,
+  );
+  const [extractedIngredients, setExtractedIngredientsState] = useState<
+    string[]
+  >([]);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
 
-  const clearScanSession = () => {
+  const setCapturedImageUri = useCallback((uri: string | null) => {
+    setCapturedImageUriState(uri);
+
+    if (uri) {
+      setExtractedIngredientsState([]);
+      setExtractionError(null);
+    }
+  }, []);
+
+  const setExtractedIngredients = useCallback((ingredients: string[]) => {
+    setExtractedIngredientsState(ingredients);
+  }, []);
+
+  const clearExtractedIngredients = useCallback(() => {
+    setExtractedIngredientsState([]);
+  }, []);
+
+  const clearCapturedImage = useCallback(() => {
+    setCapturedImageUriState(null);
+    setExtractedIngredientsState([]);
+    setExtractionError(null);
+  }, []);
+
+  const clearScanSession = useCallback(() => {
     setSelectedCategory(null);
-  };
+    clearCapturedImage();
+  }, [clearCapturedImage]);
 
   const value = useMemo(
-    () => ({ selectedCategory, setSelectedCategory, clearScanSession }),
-    [selectedCategory],
+    () => ({
+      selectedCategory,
+      setSelectedCategory,
+      capturedImageUri,
+      setCapturedImageUri,
+      extractedIngredients,
+      setExtractedIngredients,
+      clearExtractedIngredients,
+      extractionError,
+      setExtractionError,
+      clearCapturedImage,
+      clearScanSession,
+    }),
+    [
+      capturedImageUri,
+      clearCapturedImage,
+      clearExtractedIngredients,
+      clearScanSession,
+      extractedIngredients,
+      extractionError,
+      selectedCategory,
+      setCapturedImageUri,
+      setExtractedIngredients,
+    ],
   );
 
   return <ScanContext.Provider value={value}>{children}</ScanContext.Provider>;
