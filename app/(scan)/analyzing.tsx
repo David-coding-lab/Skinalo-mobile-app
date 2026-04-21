@@ -30,12 +30,46 @@ const getParamValue = (value?: string | string[]) => {
   return value;
 };
 
+function getHelpfulErrorSummary(message: string | null) {
+  if (!message) {
+    return "We could not process this image.";
+  }
+
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("could not detect ingredients")) {
+    return "No readable ingredient text was found.";
+  }
+
+  if (normalized.includes("too large")) {
+    return "The image file is too large for processing.";
+  }
+
+  if (normalized.includes("timed out") || normalized.includes("network")) {
+    return "The scan timed out before analysis finished.";
+  }
+
+  if (normalized.includes("temporarily unavailable")) {
+    return "The analysis service is currently busy.";
+  }
+
+  if (
+    normalized.includes("session expired") ||
+    normalized.includes("sign in")
+  ) {
+    return "Authentication is required to continue scanning.";
+  }
+
+  return "Ingredient extraction did not complete.";
+}
+
 export default function AnalyzingScreen() {
   const {
     capturedImageUri,
     selectedCategory,
     setExtractedIngredients,
     setExtractionError,
+    clearCapturedImage,
   } = useScan();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -279,13 +313,27 @@ export default function AnalyzingScreen() {
         </View>
 
         <Text className="mt-5 font-publicSansBold text-3xl text-[#0F172A]">
-          Extraction failed
+          Scan could not be completed
+        </Text>
+
+        <Text className="mt-2 font-publicSansSemiBold text-base text-[#334155]">
+          {getHelpfulErrorSummary(errorMessage)}
         </Text>
 
         <Text className="mt-3 font-publicSansRegular text-base leading-6 text-[#64748B]">
           {errorMessage ||
             "We could not extract ingredients from this image. Please try again with better lighting and less blur."}
         </Text>
+
+        <View className="mt-5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+          <Text className="font-publicSansSemiBold text-sm text-[#0F172A]">
+            Tips for the next attempt
+          </Text>
+          <Text className="mt-2 font-publicSansRegular text-sm leading-6 text-[#475569]">
+            Keep the full ingredient list in frame, avoid glare, and hold the
+            camera parallel to the label.
+          </Text>
+        </View>
 
         <Pressable
           onPress={() => {
@@ -302,6 +350,8 @@ export default function AnalyzingScreen() {
 
         <Pressable
           onPress={() => {
+            clearCapturedImage();
+            setExtractionError(null);
             router.replace("/(scan)/Scanner");
           }}
           accessibilityRole="button"

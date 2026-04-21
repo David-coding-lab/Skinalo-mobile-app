@@ -3,6 +3,8 @@ import { Buffer } from "node:buffer";
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_TIMEOUT_MS = 15000;
 const DEFAULT_MAX_IMAGE_BYTES = 6 * 1024 * 1024;
+const DEFAULT_GEMINI_RETRY_ATTEMPTS = 3;
+const DEFAULT_GEMINI_RETRY_BASE_DELAY_MS = 500;
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -71,6 +73,94 @@ function parseJsonSafe(value) {
   } catch {
     return null;
   }
+}
+
+function toPositiveInt(value, fallback) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isRetryableGeminiStatus(statusCode) {
+  return statusCode === 408 || statusCode >= 500;
+}
+
+function isRetryableNetworkError(err) {
+  if (!err) {
+    return false;
+  }
+
+  if (err.name === "AbortError") {
+    return true;
+  }
+
+  return err.name === "TypeError";
+}
+
+async function fetchGeminiWithRetry({
+  endpoint,
+  requestBody,
+  timeoutMs,
+  maxAttempts,
+  baseDelayMs,
+}) {
+  let lastNetworkError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      if (
+        !response.ok &&
+        isRetryableGeminiStatus(response.status) &&
+        attempt < maxAttempts
+      ) {
+        await response.text().catch(() => null);
+        const delayMs = baseDelayMs * 2 ** (attempt - 1);
+        await sleep(delayMs);
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      lastNetworkError = err;
+
+      if (!isRetryableNetworkError(err) || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      await sleep(delayMs);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  if (lastNetworkError) {
+    throw lastNetworkError;
+  }
+
+  throw new Error("Gemini request failed before receiving a response.");
 }
 
 function mapGeminiError(statusCode, fallbackMessage) {
@@ -186,8 +276,9 @@ export default async ({ req, res, error }) => {
       );
     }
 
-    const maxImageBytes = Number(
-      process.env.INGREDIENT_MAX_IMAGE_BYTES || DEFAULT_MAX_IMAGE_BYTES,
+    const maxImageBytes = toPositiveInt(
+      process.env.INGREDIENT_MAX_IMAGE_BYTES,
+      DEFAULT_MAX_IMAGE_BYTES,
     );
     const imageBytes = Buffer.byteLength(imageBase64, "base64");
 
@@ -263,26 +354,27 @@ export default async ({ req, res, error }) => {
       },
     };
 
-    const timeoutMs = Number(
-      process.env.GEMINI_REQUEST_TIMEOUT_MS || DEFAULT_TIMEOUT_MS,
+    const timeoutMs = toPositiveInt(
+      process.env.GEMINI_REQUEST_TIMEOUT_MS,
+      DEFAULT_TIMEOUT_MS,
+    );
+    const maxRetryAttempts = toPositiveInt(
+      process.env.GEMINI_RETRY_ATTEMPTS,
+      DEFAULT_GEMINI_RETRY_ATTEMPTS,
+    );
+    const retryBaseDelayMs = toPositiveInt(
+      process.env.GEMINI_RETRY_BASE_DELAY_MS,
+      DEFAULT_GEMINI_RETRY_BASE_DELAY_MS,
     );
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
     let geminiResponse;
-    try {
-      geminiResponse = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    geminiResponse = await fetchGeminiWithRetry({
+      endpoint,
+      requestBody,
+      timeoutMs,
+      maxAttempts: maxRetryAttempts,
+      baseDelayMs: retryBaseDelayMs,
+    });
 
     const rawResponse = await geminiResponse.text();
     const parsedRawResponse = parseJsonSafe(rawResponse);
@@ -340,6 +432,17 @@ export default async ({ req, res, error }) => {
           error: "Request timed out.",
         },
         408,
+      );
+    }
+
+    if (err?.name === "TypeError") {
+      return res.json(
+        {
+          ok: false,
+          errorCode: "GEMINI_UNAVAILABLE",
+          error: "Gemini service is temporarily unavailable.",
+        },
+        503,
       );
     }
 

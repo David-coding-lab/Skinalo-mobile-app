@@ -3,7 +3,6 @@ import {
   CameraView,
   useCameraPermissions,
   type CameraCapturedPicture,
-  type BarcodeScanningResult,
 } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -31,19 +30,12 @@ const FRAME_CORNER_SIZE = 30;
 const FRAME_CORNER_THICKNESS = 4;
 
 export default function Scanner() {
-  const {
-    selectedCategory,
-    capturedImageUri,
-    setCapturedImageUri,
-    clearCapturedImage,
-  } = useScan();
+  const { selectedCategory, capturedImageUri, setCapturedImageUri } = useScan();
   const { width } = useWindowDimensions();
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [mediaLibraryPermission, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
-  const [hasScanned, setHasScanned] = useState(false);
-  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
   const [isTorchEnabled, setIsTorchEnabled] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [galleryNotice, setGalleryNotice] = useState<string | null>(null);
@@ -87,12 +79,6 @@ export default function Scanner() {
     };
   });
 
-  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-    setHasScanned(true);
-    setLastScannedCode(result.data);
-    clearCapturedImage();
-  };
-
   const openPreview = (imageUri: string, source: "camera" | "gallery") => {
     setCapturedImageUri(imageUri);
 
@@ -119,7 +105,7 @@ export default function Scanner() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: false,
-        quality: 1,
+        quality: 0.7,
         selectionLimit: 1,
       });
 
@@ -135,8 +121,6 @@ export default function Scanner() {
         return;
       }
 
-      setHasScanned(false);
-      setLastScannedCode(null);
       openPreview(selectedUri, "gallery");
     } catch {
       setGalleryNotice("Could not open gallery. Please try again.");
@@ -153,7 +137,7 @@ export default function Scanner() {
 
       const photo: CameraCapturedPicture | undefined =
         await cameraRef.current.takePictureAsync({
-          quality: 1,
+          quality: 0.65,
           skipProcessing: true,
         });
 
@@ -162,8 +146,6 @@ export default function Scanner() {
         return;
       }
 
-      setHasScanned(false);
-      setLastScannedCode(null);
       openPreview(photo.uri, "camera");
     } catch {
       setGalleryNotice("Could not capture image. Try again.");
@@ -211,7 +193,8 @@ export default function Scanner() {
             Camera access needed
           </Text>
           <Text className="mt-3 font-publicSansRegular text-base leading-6 text-[#64748B]">
-            Allow camera permission so Skinalo can scan product barcodes.
+            Allow camera permission so Skinalo can capture ingredient label
+            photos.
           </Text>
           <PrimaryButton
             text="Allow camera"
@@ -237,7 +220,6 @@ export default function Scanner() {
         style={StyleSheet.absoluteFillObject}
         facing="back"
         enableTorch={isTorchEnabled}
-        onBarcodeScanned={hasScanned ? undefined : handleBarcodeScanned}
       />
 
       <View
@@ -352,15 +334,6 @@ export default function Scanner() {
             Align the text within the frame for a fast and accurate skin
             analysis
           </Text>
-
-          {hasScanned && lastScannedCode ? (
-            <Text
-              numberOfLines={1}
-              className="mt-4 rounded-full bg-[rgba(15,23,42,0.6)] px-4 py-2 font-publicSansSemiBold text-[17px] text-[#D1FAE5]"
-            >
-              Captured: {lastScannedCode}
-            </Text>
-          ) : null}
 
           {capturedImageUri ? (
             <Text className="mt-3 rounded-full bg-[rgba(15,23,42,0.6)] px-4 py-2 font-publicSansSemiBold text-[17px] text-[#BFDBFE]">
