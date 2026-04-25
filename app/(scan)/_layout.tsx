@@ -43,6 +43,17 @@ export default function ScanLayout() {
           options={{
             title: "Skinalo",
             animation: "fade",
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.replace("/")}
+                hitSlop={10}
+                style={{ paddingHorizontal: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Back to dashboard"
+              >
+                <Ionicons name="arrow-back" size={24} color="#0F172A" />
+              </Pressable>
+            ),
           }}
         />
         <Stack.Screen
@@ -75,6 +86,7 @@ export default function ScanLayout() {
           options={{
             headerShown: false,
             animation: "fade_from_bottom",
+            gestureEnabled: false,
           }}
         />
         <Stack.Screen
@@ -82,6 +94,18 @@ export default function ScanLayout() {
           options={{
             title: "Manual Input",
             animation: "fade_from_bottom",
+            gestureEnabled: false,
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.replace("/(scan)/ScanInstructions")}
+                hitSlop={10}
+                style={{ paddingHorizontal: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Back to scan instructions"
+              >
+                <Ionicons name="close" size={24} color="#0F172A" />
+              </Pressable>
+            ),
           }}
         />
         <Stack.Screen
@@ -89,15 +113,55 @@ export default function ScanLayout() {
           options={{
             title: "Analyzing",
             animation: "fade",
+            gestureEnabled: false,
             headerLeft: () => (
               <Pressable
-                onPress={() => router.back()}
+                onPress={() => router.replace("/(scan)/ScanInstructions")}
                 hitSlop={10}
                 style={{ paddingHorizontal: 4 }}
                 accessibilityRole="button"
-                accessibilityLabel="Close"
+                accessibilityLabel="Back to scan instructions"
               >
                 <Ionicons name="close" size={24} color="#0F172A" />
+              </Pressable>
+            ),
+          }}
+        />
+        <Stack.Screen
+          name="error"
+          options={{
+            title: "Error",
+            animation: "fade",
+            gestureEnabled: false,
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.replace("/(scan)/ScanInstructions")}
+                hitSlop={10}
+                style={{ paddingHorizontal: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Back to scan instructions"
+              >
+                <Ionicons name="close" size={24} color="#0F172A" />
+              </Pressable>
+            ),
+          }}
+        />
+
+        <Stack.Screen
+          name="Results"
+          options={{
+            title: "Analysis Results",
+            animation: "fade",
+            gestureEnabled: false,
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.replace("/")}
+                hitSlop={10}
+                style={{ paddingHorizontal: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Back to Home"
+              >
+                <Ionicons name="arrow-back" size={24} color="#0F172A" />
               </Pressable>
             ),
           }}

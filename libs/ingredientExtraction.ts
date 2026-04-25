@@ -89,7 +89,7 @@ function getFriendlyExtractionErrorMessage(
     case "UNAUTHORIZED":
       return "Your session expired. Please sign in again and retry.";
     case "GEMINI_UNAVAILABLE":
-      return "The analysis service is temporarily unavailable. Please try again shortly.";
+      return "We are currently facing an issue with AI analysis. Please try again in some time, or manually input the ingredients.";
     default:
       return fallback;
   }
@@ -195,7 +195,7 @@ export async function extractIngredientsFromImage({
 
     const fallbackError =
       execution.status !== "completed"
-        ? "The analysis service is temporarily unavailable. Please try again shortly."
+        ? "We are currently facing an issue with AI analysis. Please try again in some time, or manually input the ingredients."
         : "Ingredient extraction failed.";
 
     lastErrorMessage =

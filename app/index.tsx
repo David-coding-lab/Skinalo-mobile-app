@@ -1,13 +1,13 @@
 import LocalRecommendationCarousel from "@/components/LocalRecommendationCarousel";
 import PremiumFeatureCarousel from "@/components/PremiumFeatureCarousel";
 import RecentScanCard, { type RecentScan } from "@/components/RecentScanCard";
+import BottomNav, { BOTTOM_NAV_HEIGHT, type BottomNavItem } from "@/components/BottomNav";
 import { useAuth } from "@/context/AuthProvider";
 import type { LocalProductRecommendation } from "@/types/localProductRecommendation";
 import type { PremiumFeature } from "@/types/premiumFeature";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { router, usePathname } from "expo-router";
-import type { ComponentProps } from "react";
 import {
   Image,
   ImageBackground,
@@ -21,13 +21,6 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-
-type BottomNavItem = {
-  key: string;
-  label: string;
-  icon: ComponentProps<typeof Ionicons>["name"];
-  pathPrefix: string;
-};
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -143,32 +136,35 @@ export default function Index() {
   ];
 
   const bottomNavItems: BottomNavItem[] = [
-    { key: "home", label: "Home", icon: "home", pathPrefix: "/" },
-    { key: "scan", label: "Scan", icon: "scan", pathPrefix: "/scan" },
+    {
+      key: "home",
+      label: "Home",
+      icon: "home",
+      isActive: pathname === "/",
+      onPress: () => router.replace("/"),
+    },
+    {
+      key: "scan",
+      label: "Scan",
+      icon: "scan",
+      isActive: pathname.includes("/(scan)") || pathname.startsWith("/scan"),
+      onPress: () => router.replace("/(scan)/Products"),
+    },
     {
       key: "history",
       label: "History",
       icon: "time",
-      pathPrefix: "/history",
+      isActive: pathname.startsWith("/history"),
+      disabledHint: "History tab is coming soon",
     },
     {
       key: "profile",
       label: "Profile",
       icon: "happy",
-      pathPrefix: "/profile",
+      isActive: pathname.startsWith("/profile"),
+      disabledHint: "Profile tab is coming soon",
     },
   ];
-
-  const bottomNavWidth = 380;
-  const bottomNavHeight = 86;
-  const bottomNavItemGap = 20;
-  const bottomNavBackgroundColor = "#EEF3F8";
-  const bottomNavBorderColor = "#CBD5E1";
-  const bottomNavShadowColor = "#64748B";
-  const bottomNavActiveColor = "#2D6A4F";
-  const bottomNavInactiveColor = "#8FA1B3";
-  const isBottomNavItemActive = (pathPrefix: string) =>
-    pathPrefix === "/" ? pathname === "/" : pathname.startsWith(pathPrefix);
 
   // Guard to prevent any rendering of the home content while we are still loading/redirecting
   if (loading || !user) return null;
@@ -180,7 +176,7 @@ export default function Index() {
           className="w-full"
           contentContainerStyle={{
             alignItems: "center",
-            paddingBottom: bottomNavHeight + 46 + bottomInset,
+            paddingBottom: BOTTOM_NAV_HEIGHT + 46 + bottomInset,
           }}
           showsVerticalScrollIndicator={false}
           decelerationRate="normal"
@@ -361,61 +357,7 @@ export default function Index() {
             country={countryFromPrefs}
           />
         </ScrollView>
-
-        <View
-          className="absolute self-center rounded-[36px] px-4"
-          style={{
-            width: bottomNavWidth,
-            height: bottomNavHeight,
-            bottom: Math.max(bottomInset, 10),
-            backgroundColor: bottomNavBackgroundColor,
-            borderColor: bottomNavBorderColor,
-            borderWidth: 1,
-            shadowColor: bottomNavShadowColor,
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.18,
-            shadowRadius: 12,
-            elevation: 8,
-            zIndex: 20,
-          }}
-        >
-          <View
-            className="h-full flex-row items-center justify-center"
-            style={{ gap: bottomNavItemGap }}
-          >
-            {bottomNavItems.map((item) => {
-              const isActive = isBottomNavItemActive(item.pathPrefix);
-
-              return (
-                <View
-                  key={item.key}
-                  accessible
-                  accessibilityRole="tab"
-                  accessibilityLabel={item.label}
-                  className="w-[72px] items-center"
-                >
-                  <Ionicons
-                    name={item.icon}
-                    size={22}
-                    color={
-                      isActive ? bottomNavActiveColor : bottomNavInactiveColor
-                    }
-                  />
-                  <Text
-                    className="mt-1 font-publicSansSemiBold text-xs"
-                    style={{
-                      color: isActive
-                        ? bottomNavActiveColor
-                        : bottomNavInactiveColor,
-                    }}
-                  >
-                    {item.label}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+        <BottomNav items={bottomNavItems} />
       </View>
     </SafeAreaView>
   );

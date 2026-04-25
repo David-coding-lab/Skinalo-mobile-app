@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback } from "react";
 import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
+    BackHandler,
+    Image,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+    useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -35,10 +37,26 @@ export default function ImagePreview() {
   const category = getParamValue(params.category);
   const frameSize = Math.min(width - 40, 380);
 
-  const handleRetake = () => {
+  const handleRetake = useCallback(() => {
     clearCapturedImage();
-    router.back();
-  };
+    router.replace("/(scan)/ScanInstructions");
+  }, [clearCapturedImage]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          handleRetake();
+          return true;
+        },
+      );
+
+      return () => {
+        subscription.remove();
+      };
+    }, [handleRetake]),
+  );
 
   if (!imageUri) {
     return (
@@ -55,11 +73,11 @@ export default function ImagePreview() {
               handleRetake();
             }}
             accessibilityRole="button"
-            accessibilityLabel="Back to scanner"
+            accessibilityLabel="Back to scan instructions"
             className="mt-8 h-14 items-center justify-center rounded-2xl bg-primary"
           >
             <Text className="font-publicSansSemiBold text-lg text-white">
-              Back to scanner
+              Back to instructions
             </Text>
           </Pressable>
         </View>
@@ -203,7 +221,7 @@ export default function ImagePreview() {
 
             <Pressable
               onPress={() => {
-                router.push({
+                router.replace({
                   pathname: "/(scan)/analyzing",
                   params: {
                     imageUri,

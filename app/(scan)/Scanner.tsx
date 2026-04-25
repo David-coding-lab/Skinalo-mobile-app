@@ -82,7 +82,7 @@ export default function Scanner() {
   const openPreview = (imageUri: string, source: "camera" | "gallery") => {
     setCapturedImageUri(imageUri);
 
-    router.push({
+    router.replace({
       pathname: "/(scan)/ImagePreview",
       params: {
         imageUri,

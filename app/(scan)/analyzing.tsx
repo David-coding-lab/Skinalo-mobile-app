@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { BackHandler, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -30,39 +30,6 @@ const getParamValue = (value?: string | string[]) => {
   return value;
 };
 
-function getHelpfulErrorSummary(message: string | null) {
-  if (!message) {
-    return "We could not process this image.";
-  }
-
-  const normalized = message.toLowerCase();
-
-  if (normalized.includes("could not detect ingredients")) {
-    return "No readable ingredient text was found.";
-  }
-
-  if (normalized.includes("too large")) {
-    return "The image file is too large for processing.";
-  }
-
-  if (normalized.includes("timed out") || normalized.includes("network")) {
-    return "The scan timed out before analysis finished.";
-  }
-
-  if (normalized.includes("temporarily unavailable")) {
-    return "The analysis service is currently busy.";
-  }
-
-  if (
-    normalized.includes("session expired") ||
-    normalized.includes("sign in")
-  ) {
-    return "Authentication is required to continue scanning.";
-  }
-
-  return "Ingredient extraction did not complete.";
-}
-
 export default function AnalyzingScreen() {
   const {
     capturedImageUri,
@@ -71,13 +38,12 @@ export default function AnalyzingScreen() {
     setExtractionError,
     clearCapturedImage,
   } = useScan();
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState(12);
   const [tipIndex, setTipIndex] = useState(0);
   const params = useLocalSearchParams<{
     imageUri?: string | string[];
     category?: string | string[];
+    mode?: "ingredients" | "analysis" | string | string[];
   }>();
   const orbitRotation = useSharedValue(0);
   const pulseScale = useSharedValue(1);
@@ -89,6 +55,10 @@ export default function AnalyzingScreen() {
   const category = useMemo(
     () => getParamValue(params.category) ?? selectedCategory,
     [params.category, selectedCategory],
+  );
+  const scanMode = useMemo(
+    () => getParamValue(params.mode) ?? "ingredients",
+    [params.mode],
   );
 
   useEffect(() => {
@@ -112,10 +82,6 @@ export default function AnalyzingScreen() {
   }, [orbitRotation, pulseScale]);
 
   useEffect(() => {
-    if (!isLoading) {
-      return;
-    }
-
     const progressInterval = setInterval(() => {
       setProgress((previous) => {
         if (previous >= 94) {
@@ -135,19 +101,25 @@ export default function AnalyzingScreen() {
       clearInterval(progressInterval);
       clearInterval(tipsInterval);
     };
-  }, [isLoading]);
+  }, []);
 
   const processLabel = useMemo(() => {
+    if (scanMode === "analysis") {
+      if (progress < 35) return "Reading formulation";
+      if (progress < 70) return "Analyzing chemical compounds";
+      return "Structuring analysis output";
+    }
+
     if (progress < 35) {
-      return "Preparing image for OCR";
+      return "Preparing image for text recognition";
     }
 
     if (progress < 70) {
-      return "Scanning chemical compounds";
+      return "Reading component names";
     }
 
-    return "Structuring ingredient output";
-  }, [progress]);
+    return "Organizing ingredient list";
+  }, [progress, scanMode]);
 
   const orbitAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${orbitRotation.value}deg` }],
@@ -157,17 +129,52 @@ export default function AnalyzingScreen() {
     transform: [{ scale: pulseScale.value }],
   }));
 
+  const handleReturnToInstructions = useCallback(() => {
+    clearCapturedImage();
+    setExtractionError(null);
+    router.replace("/(scan)/ScanInstructions");
+  }, [clearCapturedImage, setExtractionError]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          handleReturnToInstructions();
+          return true;
+        },
+      );
+
+      return () => {
+        subscription.remove();
+      };
+    }, [handleReturnToInstructions]),
+  );
+
   const runExtraction = useCallback(async () => {
-    if (!imageUri) {
-      const message = "No captured image found. Please retake your scan.";
-      setExtractionError(message);
-      setErrorMessage(message);
-      setIsLoading(false);
+    if (scanMode === "analysis") {
+      setExtractionError(null);
+      setProgress(12);
+      setTipIndex(0);
+
+      // Simulate delay for final analysis since API isn't connected yet
+      setTimeout(() => {
+        setProgress(100);
+        router.replace("/(scan)/Results");
+      }, 4500);
       return;
     }
 
-    setIsLoading(true);
-    setErrorMessage(null);
+    if (!imageUri) {
+      const message = "No captured image found. Please retake your scan.";
+      setExtractionError(message);
+      router.replace({
+        pathname: "/(scan)/error",
+        params: { errorMessage: message },
+      });
+      return;
+    }
+
     setExtractionError(null);
     setExtractedIngredients([]);
     setProgress(12);
@@ -181,7 +188,7 @@ export default function AnalyzingScreen() {
 
       setProgress(100);
       setExtractedIngredients(result.ingredients);
-      router.replace("/(scan)/ManualInput");
+      router.replace("/(scan)/ManualInput"); // Navigate to manual input for ingredients
     } catch (err) {
       const message =
         err instanceof Error
@@ -189,192 +196,120 @@ export default function AnalyzingScreen() {
           : "Ingredient extraction failed. Please try again.";
 
       setExtractionError(message);
-      setErrorMessage(message);
-      setIsLoading(false);
+      router.replace({
+        pathname: "/(scan)/error",
+        params: { errorMessage: message },
+      });
     }
-  }, [category, imageUri, setExtractedIngredients, setExtractionError]);
+  }, [
+    category,
+    imageUri,
+    scanMode,
+    setExtractedIngredients,
+    setExtractionError,
+  ]);
 
   useEffect(() => {
     void runExtraction();
   }, [runExtraction]);
 
-  if (isLoading) {
-    return (
-      <SafeAreaView className="flex-1" edges={["bottom"]}>
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
-          <Defs>
-            <LinearGradient
-              id="analyzingBg"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
-            >
-              <Stop offset="0%" stopColor="#EEF3FB" />
-              <Stop offset="55%" stopColor="#F6FAFF" />
-              <Stop offset="100%" stopColor="#EAF6EE" />
-            </LinearGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill="url(#analyzingBg)" />
-        </Svg>
+  return (
+    <SafeAreaView className="flex-1" edges={["bottom"]}>
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
+        <Defs>
+          <LinearGradient id="analyzingBg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#EEF3FB" />
+            <Stop offset="55%" stopColor="#F6FAFF" />
+            <Stop offset="100%" stopColor="#EAF6EE" />
+          </LinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#analyzingBg)" />
+      </Svg>
 
-        <View className="flex-1 px-6 pb-8 pt-4">
-          <View className="items-center">
-            <View style={styles.loaderArea}>
-              <View style={styles.outerRing} />
+      <View className="flex-1 px-6 pb-8 pt-4">
+        <View className="items-center">
+          <View style={styles.loaderArea}>
+            <View style={styles.outerRing} />
 
-              <Animated.View style={[styles.pulseRing, pulseAnimatedStyle]} />
+            <Animated.View style={[styles.pulseRing, pulseAnimatedStyle]} />
 
-              <Animated.View
-                style={[styles.orbitContainer, orbitAnimatedStyle]}
-              >
-                <View style={styles.orbitDot} />
-              </Animated.View>
+            <Animated.View style={[styles.orbitContainer, orbitAnimatedStyle]}>
+              <View style={styles.orbitDot} />
+            </Animated.View>
 
-              <View style={styles.coreBadge}>
-                <Ionicons name="flask-outline" size={44} color="#1D64D8" />
-              </View>
+            <View style={styles.coreBadge}>
+              <Ionicons name="flask-outline" size={44} color="#1D64D8" />
             </View>
+          </View>
 
-            <Text className="mt-2 text-center font-publicSansBold text-[41px] leading-[56px] text-[#374151]">
-              Analyzing Ingredients...
-            </Text>
-            <Text className="mt-2 text-center font-publicSansRegular text-[14px] leading-6 text-[#64748B]">
-              Understanding What&apos;s Inside Your Skincare
-            </Text>
+          <Text className="mt-2 text-center font-publicSansRegular text-3xl leading-[56px] text-[#374151]">
+            {scanMode === "analysis"
+              ? "Analyzing Product..."
+              : "Extracting Ingredients..."}
+          </Text>
+          <Text className="mt-2 text-center font-publicSansRegular text-lg leading-6 text-[#64748B]">
+            {scanMode === "analysis"
+              ? "Understanding What's Inside Your Skincare"
+              : "Processing image to extract component names"}
+          </Text>
 
-            <View className="mt-12 w-full">
-              <View className="flex-row items-end justify-between">
-                <View>
-                  <Text className="font-publicSansBold text-[20px] tracking-[1.2px] text-[#2563EB]">
-                    CURRENT PROCESS
-                  </Text>
-                  <Text className="mt-1 font-publicSansSemiBold text-[28px] leading-[44px] text-[#374151]">
-                    {processLabel}
-                  </Text>
-                </View>
-
-                <View className="flex-row items-end">
-                  <Text className="font-publicSansBold text-[46px] leading-[56px] text-[#374151]">
-                    {Math.round(progress)}
-                  </Text>
-                  <Text className="mb-1 ml-1 font-publicSansBold text-[24px] leading-8 text-[#64748B]">
-                    %
-                  </Text>
-                </View>
+          <View className="mt-32 w-full">
+            <View className="flex-row items-end justify-between">
+              <View>
+                <Text className="font-publicSansBold text-sm tracking-[1.2px] text-[#2563EB]">
+                  CURRENT PROCESS
+                </Text>
+                <Text className="mt-1 font-publicSansSemiBold text-xl leading-[44px] text-[#374151]">
+                  {processLabel}
+                </Text>
               </View>
 
-              <View className="mt-4 h-3 w-full rounded-full bg-[#D4DCE8]">
-                <View
-                  className="h-3 rounded-full bg-[#2563EB]"
-                  style={{ width: `${Math.max(6, progress)}%` }}
-                />
-              </View>
-
-              <View className="mt-6 flex-row items-center justify-center gap-2">
-                <Ionicons
-                  name="shield-checkmark-outline"
-                  size={16}
-                  color="#10B981"
-                />
-                <Text className="font-publicSansSemiBold text-[14px] text-[#94A3B8]">
-                  AI-Powered Precision Analysis
+              <View className="flex-row items-center justify-center">
+                <Text className="font-publicSansBold text-xl leading-[56px] text-[#374151]">
+                  {Math.round(progress)}
+                </Text>
+                <Text className="mb-1 ml-1 font-publicSansBold text-xl leading-8 text-[#64748B]">
+                  %
                 </Text>
               </View>
             </View>
 
-            <View className="mt-14 w-full rounded-2xl border border-[#C9D8F5] bg-[#E8F4FF] px-5 py-5">
-              <View className="flex-row items-center gap-2">
-                <Ionicons name="bulb-outline" size={20} color="#2563EB" />
-                <Text className="font-publicSansBold text-[19px] text-[#1E293B]">
-                  Did you know?
-                </Text>
-              </View>
+            <View className="mt-4 h-3 w-full rounded-full bg-[#D4DCE8]">
+              <View
+                className="h-3 rounded-full bg-[#2563EB]"
+                style={{ width: `${Math.max(6, progress)}%` }}
+              />
+            </View>
 
-              <Text className="mt-3 font-publicSansRegular text-[18px] leading-8 text-[#475569]">
-                {DUMMY_TIPS[tipIndex]}
+            <View className="mt-6 flex-row items-center justify-center gap-2">
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={16}
+                color="#10B981"
+              />
+              <Text className="font-publicSansSemiBold text-[14px] text-[#94A3B8]">
+                AI-Powered Precision Analysis
+              </Text>
+            </View>
+          </View>
+
+          <View className="mt-24 w-full rounded-2xl border border-[#C9D8F5] bg-[#E8F4FF] px-5 py-5">
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="bulb-outline" size={20} color="#2563EB" />
+              <Text className="font-publicSansBold text-lg text-[#1E293B]">
+                Did you know?
               </Text>
             </View>
 
-            <Text className="mt-8 text-center font-publicSansBold text-[14px] tracking-[4px] text-[#94A3B8]">
-              SCIENCE-FIRST SKINCARE
+            <Text className="mt-3 font-publicSansRegular text-sm leading-8 text-[#475569]">
+              {DUMMY_TIPS[tipIndex]}
             </Text>
           </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
-  return (
-    <SafeAreaView className="flex-1 bg-pageBg px-6" edges={["bottom"]}>
-      <View className="mt-10 rounded-3xl border border-[#E2E8F0] bg-white px-6 py-8">
-        <View className="h-14 w-14 items-center justify-center rounded-2xl bg-[#FEF2F2]">
-          <Ionicons name="warning-outline" size={28} color="#DC2626" />
-        </View>
-
-        <Text className="mt-5 font-publicSansBold text-3xl text-[#0F172A]">
-          Scan could not be completed
-        </Text>
-
-        <Text className="mt-2 font-publicSansSemiBold text-base text-[#334155]">
-          {getHelpfulErrorSummary(errorMessage)}
-        </Text>
-
-        <Text className="mt-3 font-publicSansRegular text-base leading-6 text-[#64748B]">
-          {errorMessage ||
-            "We could not extract ingredients from this image. Please try again with better lighting and less blur."}
-        </Text>
-
-        <View className="mt-5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-          <Text className="font-publicSansSemiBold text-sm text-[#0F172A]">
-            Tips for the next attempt
-          </Text>
-          <Text className="mt-2 font-publicSansRegular text-sm leading-6 text-[#475569]">
-            Keep the full ingredient list in frame, avoid glare, and hold the
-            camera parallel to the label.
+          <Text className="mt-8 text-center font-publicSansBold text-[14px] tracking-[4px] text-[#94A3B8]">
+            SCIENCE-FIRST SKINCARE
           </Text>
         </View>
-
-        <Pressable
-          onPress={() => {
-            void runExtraction();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Retry extraction"
-          className="mt-8 h-14 items-center justify-center rounded-2xl bg-primary"
-        >
-          <Text className="font-publicSansSemiBold text-lg text-white">
-            Retry extraction
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => {
-            clearCapturedImage();
-            setExtractionError(null);
-            router.replace("/(scan)/Scanner");
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Retake image"
-          className="mt-4 h-14 items-center justify-center rounded-2xl border border-[#D6DCE3] bg-white"
-        >
-          <Text className="font-publicSansSemiBold text-lg text-[#0F172A]">
-            Retake image
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => {
-            router.replace("/(scan)/ManualInput");
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Continue to manual input"
-          className="mt-4 h-14 items-center justify-center rounded-2xl border border-[#D6DCE3] bg-white"
-        >
-          <Text className="font-publicSansSemiBold text-lg text-[#0F172A]">
-            Continue manually
-          </Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { ComponentProps } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { ComponentProps, useCallback } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -31,7 +31,13 @@ const SCAN_TIPS: TipConfig[] = [
 ];
 
 export default function ScanInstructions() {
-  const { selectedCategory } = useScan();
+  const { selectedCategory, clearCapturedImage } = useScan();
+
+  useFocusEffect(
+    useCallback(() => {
+      clearCapturedImage();
+    }, [clearCapturedImage]),
+  );
 
   if (!selectedCategory) {
     return (
