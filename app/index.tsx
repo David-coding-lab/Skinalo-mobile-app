@@ -1,22 +1,33 @@
+import BottomNav, {
+  BOTTOM_NAV_HEIGHT,
+  type BottomNavItem,
+} from "@/components/BottomNav";
 import LocalRecommendationCarousel from "@/components/LocalRecommendationCarousel";
 import PremiumFeatureCarousel from "@/components/PremiumFeatureCarousel";
 import RecentScanCard, { type RecentScan } from "@/components/RecentScanCard";
-import BottomNav, { BOTTOM_NAV_HEIGHT, type BottomNavItem } from "@/components/BottomNav";
 import { useAuth } from "@/context/AuthProvider";
 import type { LocalProductRecommendation } from "@/types/localProductRecommendation";
 import type { PremiumFeature } from "@/types/premiumFeature";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { router, usePathname } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   Image,
   ImageBackground,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  Easing,
+  FadeInDown,
+  FadeOutUp,
+  LinearTransition,
+} from "react-native-reanimated";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -26,6 +37,7 @@ export default function Index() {
   const { user, loading } = useAuth();
   const { bottom: bottomInset } = useSafeAreaInsets();
   const pathname = usePathname();
+  const [showAllRecentScans, setShowAllRecentScans] = useState(false);
 
   const toneKey = String(user?.prefs?.skinTone || "").toLowerCase();
   const toneMap: Record<string, { label: string; color: string }> = {
@@ -165,6 +177,15 @@ export default function Index() {
       disabledHint: "Profile tab is coming soon",
     },
   ];
+
+  const COLLAPSED_RECENT_SCAN_COUNT = 2;
+  const hasHiddenRecentScans = recentScans.length > COLLAPSED_RECENT_SCAN_COUNT;
+  const visibleRecentScans = recentScans.slice(0, COLLAPSED_RECENT_SCAN_COUNT);
+  const hiddenRecentScans = recentScans.slice(COLLAPSED_RECENT_SCAN_COUNT);
+
+  const toggleRecentScans = useCallback(() => {
+    setShowAllRecentScans((previous) => !previous);
+  }, []);
 
   // Guard to prevent any rendering of the home content while we are still loading/redirecting
   if (loading || !user) return null;
@@ -312,16 +333,54 @@ export default function Index() {
               <Text className="font-publicSansBold text-xl">
                 Recent Analysis
               </Text>
-              <Text className="text-lightBlue font-publicSansSemiBold text-md">
-                VIEW ALL({recentScans.length})
-              </Text>
+              <Pressable
+                onPress={toggleRecentScans}
+                disabled={!hasHiddenRecentScans}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showAllRecentScans
+                    ? "View fewer recent analysis cards"
+                    : "View all recent analysis cards"
+                }
+              >
+                <Text className="text-lightBlue font-publicSansSemiBold text-md">
+                  {hasHiddenRecentScans
+                    ? showAllRecentScans
+                      ? "VIEW LESS"
+                      : `VIEW ALL(${recentScans.length})`
+                    : `VIEW ALL(${recentScans.length})`}
+                </Text>
+              </Pressable>
             </View>
 
-            <View className="mt-4 gap-4">
-              {recentScans.map((scan) => (
+            <Animated.View
+              className="mt-4 gap-4"
+              layout={LinearTransition.duration(280).easing(
+                Easing.inOut(Easing.ease),
+              )}
+            >
+              {visibleRecentScans.map((scan) => (
                 <RecentScanCard key={scan.id} scan={scan} />
               ))}
-            </View>
+
+              {showAllRecentScans &&
+                hiddenRecentScans.map((scan, index) => (
+                  <Animated.View
+                    key={scan.id}
+                    entering={FadeInDown.duration(280)
+                      .delay(index * 55)
+                      .easing(Easing.out(Easing.cubic))}
+                    exiting={FadeOutUp.duration(200).easing(
+                      Easing.in(Easing.cubic),
+                    )}
+                    layout={LinearTransition.duration(260).easing(
+                      Easing.inOut(Easing.ease),
+                    )}
+                  >
+                    <RecentScanCard scan={scan} />
+                  </Animated.View>
+                ))}
+            </Animated.View>
           </View>
 
           <PremiumFeatureCarousel features={premiumFeatures} />
