@@ -788,17 +788,31 @@ async function handleStart({
   log(`Composite key: ${keys.compositeKey}`);
 
   log("Checking cache...");
-  const cacheRow = await fetchCacheByCompositeKey({
-    endpoint,
-    projectId,
-    apiKey,
-    databaseId: config.databaseId,
-    cacheTableId: config.cacheTableId,
-    compositeKey: keys.compositeKey,
-    modelVersion: config.modelVersion,
-    promptVersion: config.promptVersion,
-  });
-  log(`Cache row: ${cacheRow ? "FOUND" : "NOT FOUND"}`);
+  let cacheRow = null;
+  try {
+    const cachePromise = fetchCacheByCompositeKey({
+      endpoint,
+      projectId,
+      apiKey,
+      databaseId: config.databaseId,
+      cacheTableId: config.cacheTableId,
+      compositeKey: keys.compositeKey,
+      modelVersion: config.modelVersion,
+      promptVersion: config.promptVersion,
+    });
+    
+    // 5 second timeout for cache lookup
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Cache lookup timeout")), 5000)
+    );
+    
+    cacheRow = await Promise.race([cachePromise, timeoutPromise]);
+    log(`Cache fetch completed. Cache row: ${cacheRow ? "FOUND" : "NOT FOUND"}`);
+  } catch (err) {
+    log(`WARNING: Cache lookup failed or timed out: ${err?.message || err}`);
+    log(`Proceeding without cache...`);
+    cacheRow = null;
+  }
 
   if (cacheRow) {
     log("Cache hit detected, returning cached result...");
