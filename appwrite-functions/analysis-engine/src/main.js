@@ -1077,6 +1077,12 @@ async function handleStatus({
 }
 
 export default async ({ req, res, log, error }) => {
+  log("=== ANALYSIS FUNCTION START ===");
+  log(`Method: ${req.method}`);
+  log(`Path: ${req.path}`);
+  log(`Headers: ${JSON.stringify(req.headers)}`);
+  log(`Body type: ${typeof req.body}`);
+
   const endpoint = getEnv("APPWRITE_FUNCTION_API_ENDPOINT");
   const projectId = getEnv("APPWRITE_FUNCTION_PROJECT_ID");
   const apiKey = getEnv("APPWRITE_API_KEY");
@@ -1093,7 +1099,12 @@ export default async ({ req, res, log, error }) => {
   const promptVersion = getEnv("ANALYSIS_PROMPT_VERSION");
   const systemPrompt = getEnv("ANALYSIS_SYSTEM_PROMPT");
 
+  log(
+    `ENV Check: endpoint=${!!endpoint}, projectId=${!!projectId}, apiKey=${!!apiKey}, databaseId=${!!databaseId}`,
+  );
+
   if (!endpoint || !projectId || !apiKey || !databaseId) {
+    log("ERROR: Missing Appwrite environment variables");
     return res.json(
       {
         ok: false,
@@ -1104,7 +1115,12 @@ export default async ({ req, res, log, error }) => {
     );
   }
 
+  log(
+    `GEMINI Check: key=${!!geminiApiKey}, modelVer=${!!modelVersion}, promptVer=${!!promptVersion}`,
+  );
+
   if (!geminiApiKey || !modelVersion || !promptVersion) {
+    log("ERROR: Missing Gemini environment variables");
     return res.json(
       {
         ok: false,
@@ -1116,6 +1132,7 @@ export default async ({ req, res, log, error }) => {
   }
 
   if (!systemPrompt) {
+    log("ERROR: Missing system prompt");
     return res.json(
       {
         ok: false,
@@ -1127,7 +1144,10 @@ export default async ({ req, res, log, error }) => {
   }
 
   const sessionUserId = getSessionUserId(req.headers);
+  log(`Session User ID: ${sessionUserId || "MISSING"}`);
+
   if (!sessionUserId) {
+    log("ERROR: Unauthorized - no session user ID");
     return res.json(
       {
         ok: false,
@@ -1152,8 +1172,13 @@ export default async ({ req, res, log, error }) => {
 
   let payload;
   try {
+    log(
+      `Parsing body: ${typeof req.body === "string" ? req.body.substring(0, 100) : JSON.stringify(req.body).substring(0, 100)}`,
+    );
     payload = parseBody(req.body);
-  } catch {
+    log(`Parsed payload: ${JSON.stringify(payload)}`);
+  } catch (err) {
+    log(`ERROR: Parse failed: ${err?.message || err}`);
     return res.json(
       {
         ok: false,
@@ -1169,8 +1194,11 @@ export default async ({ req, res, log, error }) => {
       ? payload.action.trim().toLowerCase()
       : "start";
 
+  log(`Action: ${action}`);
+
   try {
     if (action === "status") {
+      log("Handling status action");
       const result = await handleStatus({
         payload,
         sessionUserId,
@@ -1179,11 +1207,12 @@ export default async ({ req, res, log, error }) => {
         projectId,
         apiKey,
       });
-
+      log(`Status result: ${JSON.stringify(result)}`);
       return res.json(result.body, result.statusCode);
     }
 
     if (action !== "start") {
+      log(`ERROR: Invalid action '${action}'`);
       return res.json(
         {
           ok: false,
@@ -1194,6 +1223,7 @@ export default async ({ req, res, log, error }) => {
       );
     }
 
+    log("Handling start action");
     const result = await handleStart({
       payload,
       sessionUserId,
@@ -1203,7 +1233,7 @@ export default async ({ req, res, log, error }) => {
       apiKey,
       log,
     });
-
+    log(`Start result: ${JSON.stringify(result)}`);
     return res.json(result.body, result.statusCode);
   } catch (err) {
     error(`Analysis engine function failed: ${err?.message || err}`);

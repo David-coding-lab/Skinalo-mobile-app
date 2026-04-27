@@ -260,11 +260,13 @@ export default function AnalyzingScreen() {
 
         if (!startResponse.analysisRequestId) {
           throw new Error(
-            "Analysis request ID is missing from start response.",
+            "Analysis response is missing request tracking metadata. Please redeploy the latest analysis function.",
           );
         }
 
         setAnalysisStatus("accepted");
+
+        const analysisRequestId = startResponse.analysisRequestId;
 
         const maxPollAttempts = 14;
         for (let attempt = 0; attempt < maxPollAttempts; attempt += 1) {
@@ -272,9 +274,7 @@ export default function AnalyzingScreen() {
             return;
           }
 
-          const statusResponse = await getAnalysisStatus(
-            startResponse.analysisRequestId,
-          );
+          const statusResponse = await getAnalysisStatus(analysisRequestId);
 
           if (activeRunIdRef.current !== runId) {
             return;

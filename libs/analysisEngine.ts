@@ -86,7 +86,16 @@ export type StartAnalysisParams = {
   ingredients: string[];
 };
 
-function parseFunctionResponse(rawBody?: string): AnalysisFunctionResponse | null {
+const VALID_STATUSES = new Set([
+  "accepted",
+  "processing",
+  "completed",
+  "failed",
+]);
+
+function parseFunctionResponse(
+  rawBody?: string,
+): AnalysisFunctionResponse | null {
   if (!rawBody) {
     return null;
   }
@@ -144,6 +153,12 @@ export async function startAnalysis({
     throw new Error("Analysis service returned an invalid response.");
   }
 
+  if (!VALID_STATUSES.has(response.status)) {
+    throw new Error(
+      "Analysis response has an invalid status. Please redeploy the latest analysis function.",
+    );
+  }
+
   if (execution.status !== "completed" || execution.responseStatusCode >= 500) {
     throw new Error("Analysis service is temporarily unavailable.");
   }
@@ -154,6 +169,21 @@ export async function startAnalysis({
       response.error || "Analysis failed.",
     );
     throw new Error(message);
+  }
+
+  if (
+    (response.status === "accepted" || response.status === "processing") &&
+    !response.analysisRequestId
+  ) {
+    throw new Error(
+      "Analysis response is missing analysisRequestId. Please redeploy the latest analysis function.",
+    );
+  }
+
+  if (response.status === "completed" && response.ok && !response.result) {
+    throw new Error(
+      "Analysis completed response is missing result data. Please redeploy the latest analysis function.",
+    );
   }
 
   return response;
