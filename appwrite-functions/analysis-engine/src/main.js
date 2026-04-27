@@ -244,10 +244,100 @@ async function appwriteRequest({
     const err = new Error(errorMessage);
     err.statusCode = response.status;
     err.payload = parsed;
+    err.path = path;
+    err.method = method;
     throw err;
   }
 
   return parsed;
+}
+
+async function getDatabase({ endpoint, projectId, apiKey, databaseId }) {
+  return appwriteRequest({
+    endpoint,
+    projectId,
+    apiKey,
+    method: "GET",
+    path: `/databases/${encodeTablePath(databaseId)}`,
+  });
+}
+
+function createConfigError(code, message, details) {
+  const err = new Error(message);
+  err.errorCode = code;
+  err.isConfigError = true;
+  err.details = details || null;
+  return err;
+}
+
+async function verifyAnalysisResources({
+  endpoint,
+  projectId,
+  apiKey,
+  databaseId,
+  requestsTableId,
+  cacheTableId,
+  eventsTableId,
+}) {
+  try {
+    await getDatabase({ endpoint, projectId, apiKey, databaseId });
+  } catch (err) {
+    if (err?.statusCode === 404) {
+      throw createConfigError(
+        "CONFIG_DATABASE_NOT_FOUND",
+        "Configured analysis database was not found.",
+        { databaseId },
+      );
+    }
+
+    throw createConfigError(
+      "CONFIG_DATABASE_UNREACHABLE",
+      "Failed to verify analysis database configuration.",
+      { databaseId, reason: err?.message || "Unknown error" },
+    );
+  }
+
+  const tables = [
+    { key: "ANALYSIS_REQUESTS_TABLE_ID", id: requestsTableId },
+    { key: "ANALYSIS_CACHE_TABLE_ID", id: cacheTableId },
+    { key: "ANALYSIS_EVENTS_TABLE_ID", id: eventsTableId },
+  ];
+
+  for (const table of tables) {
+    try {
+      await listRows({
+        endpoint,
+        projectId,
+        apiKey,
+        databaseId,
+        tableId: table.id,
+        queries: ["limit(1)"],
+      });
+    } catch (err) {
+      if (err?.statusCode === 404) {
+        throw createConfigError(
+          "CONFIG_TABLE_NOT_FOUND",
+          `Configured table was not found: ${table.key}.`,
+          {
+            databaseId,
+            tableEnvKey: table.key,
+            tableId: table.id,
+          },
+        );
+      }
+
+      throw createConfigError(
+        "CONFIG_TABLE_UNREACHABLE",
+        `Failed to verify configured table: ${table.key}.`,
+        {
+          databaseId,
+          tableEnvKey: table.key,
+          tableId: table.id,
+          reason: err?.message || "Unknown error",
+        },
+      );
+    }
+  }
 }
 
 async function getUserProfile({ endpoint, projectId, apiKey, userId }) {
@@ -727,10 +817,10 @@ async function handleStart({
   log("=== HANDLE START ===");
   log(`Input selectedCategory: ${payload.selectedCategory}`);
   log(`Input ingredients: ${JSON.stringify(payload.ingredients)}`);
-  
+
   const selectedCategory = normalizeCategory(payload.selectedCategory);
   const normalizedIngredients = normalizeIngredients(payload.ingredients);
-  
+
   log(`Normalized selectedCategory: ${selectedCategory}`);
   log(`Normalized ingredients: ${JSON.stringify(normalizedIngredients)}`);
 
@@ -747,7 +837,9 @@ async function handleStart({
   }
 
   if (normalizedIngredients.length < 3) {
-    log(`ERROR: Only ${normalizedIngredients.length} ingredients, need at least 3`);
+    log(
+      `ERROR: Only ${normalizedIngredients.length} ingredients, need at least 3`,
+    );
     return {
       statusCode: 400,
       body: {
@@ -800,14 +892,16 @@ async function handleStart({
       modelVersion: config.modelVersion,
       promptVersion: config.promptVersion,
     });
-    
+
     // 5 second timeout for cache lookup
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Cache lookup timeout")), 5000)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Cache lookup timeout")), 5000),
     );
-    
+
     cacheRow = await Promise.race([cachePromise, timeoutPromise]);
-    log(`Cache fetch completed. Cache row: ${cacheRow ? "FOUND" : "NOT FOUND"}`);
+    log(
+      `Cache fetch completed. Cache row: ${cacheRow ? "FOUND" : "NOT FOUND"}`,
+    );
   } catch (err) {
     log(`WARNING: Cache lookup failed or timed out: ${err?.message || err}`);
     log(`Proceeding without cache...`);
@@ -819,7 +913,7 @@ async function handleStart({
     const cacheRowId = mapRowId(cacheRow);
     const currentUsage = Number(cacheRow.usageCount || 0);
     log(`Cache row ID: ${cacheRowId}`);
-    
+
     if (cacheRowId) {
       try {
         await updateRow({
@@ -836,7 +930,9 @@ async function handleStart({
         });
         log("Cache usage count updated");
       } catch (err) {
-        log(`Warning: Failed to update cache usage count: ${err?.message || err}`);
+        log(
+          `Warning: Failed to update cache usage count: ${err?.message || err}`,
+        );
       }
     }
 
@@ -1153,16 +1249,29 @@ export default async ({ req, res, log, error }) => {
   const systemPrompt = getEnv("ANALYSIS_SYSTEM_PROMPT");
 
   log(
+    `Resolved analysis IDs: database=${databaseId || "<empty>"}, requests=${requestsTableId || "<empty>"}, cache=${cacheTableId || "<empty>"}, events=${eventsTableId || "<empty>"}`,
+  );
+
+  log(
     `ENV Check: endpoint=${!!endpoint}, projectId=${!!projectId}, apiKey=${!!apiKey}, databaseId=${!!databaseId}`,
   );
 
-  if (!endpoint || !projectId || !apiKey || !databaseId) {
+  if (
+    !endpoint ||
+    !projectId ||
+    !apiKey ||
+    !databaseId ||
+    !requestsTableId ||
+    !cacheTableId ||
+    !eventsTableId
+  ) {
     log("ERROR: Missing Appwrite environment variables");
     return res.json(
       {
         ok: false,
         errorCode: "SERVER_MISCONFIGURED",
-        error: "Appwrite function environment is incomplete.",
+        error:
+          "Appwrite function environment is incomplete. Database and table IDs are required.",
       },
       500,
     );
@@ -1208,6 +1317,32 @@ export default async ({ req, res, log, error }) => {
         error: "Unauthorized",
       },
       401,
+    );
+  }
+
+  try {
+    await verifyAnalysisResources({
+      endpoint,
+      projectId,
+      apiKey,
+      databaseId,
+      requestsTableId,
+      cacheTableId,
+      eventsTableId,
+    });
+  } catch (err) {
+    error(
+      `Analysis config verification failed: ${err?.errorCode || "UNKNOWN"} ${err?.message || err}`,
+    );
+    return res.json(
+      {
+        ok: false,
+        errorCode: err?.errorCode || "SERVER_MISCONFIGURED",
+        error:
+          err?.message || "Configured analysis database resources are invalid.",
+        details: err?.details || null,
+      },
+      500,
     );
   }
 
@@ -1295,10 +1430,11 @@ export default async ({ req, res, log, error }) => {
       return res.json(
         {
           ok: false,
-          errorCode: "REQUEST_NOT_FOUND",
-          error: "Requested resource was not found.",
+          errorCode: "CONFIG_RESOURCE_NOT_FOUND",
+          error:
+            "A configured analysis database resource was not found. Verify database and table IDs.",
         },
-        404,
+        500,
       );
     }
 

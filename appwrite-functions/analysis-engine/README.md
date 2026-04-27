@@ -54,7 +54,7 @@ Poll status:
 }
 ```
 
-Status calls can move a queued request into processing and may return `processing`, `completed`, or `failed`.
+Status calls are read-only and return `processing`, `completed`, or `failed`.
 
 ## Response Status Values
 
@@ -71,6 +71,20 @@ Status calls can move a queued request into processing and may return `processin
 ## Troubleshooting
 
 - `SERVER_MISCONFIGURED`: check missing Appwrite/Gemini env variables.
+- `CONFIG_DATABASE_NOT_FOUND`: verify `ANALYSIS_DATABASE_ID` exists in the active Appwrite project.
+- `CONFIG_TABLE_NOT_FOUND`: verify table IDs for `ANALYSIS_REQUESTS_TABLE_ID`, `ANALYSIS_CACHE_TABLE_ID`, and `ANALYSIS_EVENTS_TABLE_ID`.
+- `CONFIG_RESOURCE_NOT_FOUND`: function reached Appwrite but a configured DB resource could not be resolved.
 - `PROMPT_NOT_CONFIGURED`: set `ANALYSIS_SYSTEM_PROMPT` exactly.
 - `INTERNAL_ERROR` on DB operations: verify `ANALYSIS_DATABASE_ID` and table IDs.
 - `INTERNAL_ERROR` on user profile fetch: verify API key has users read scope.
+
+## Startup Validation
+
+On each execution, the function verifies:
+
+- Database exists (`ANALYSIS_DATABASE_ID`)
+- `analysis_requests` table is reachable
+- `analysis_cache` table is reachable
+- `analysis_events` table is reachable
+
+If any check fails, execution returns a configuration error before analysis processing starts.
