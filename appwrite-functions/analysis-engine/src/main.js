@@ -724,10 +724,18 @@ async function handleStart({
   apiKey,
   log,
 }) {
+  log("=== HANDLE START ===");
+  log(`Input selectedCategory: ${payload.selectedCategory}`);
+  log(`Input ingredients: ${JSON.stringify(payload.ingredients)}`);
+  
   const selectedCategory = normalizeCategory(payload.selectedCategory);
   const normalizedIngredients = normalizeIngredients(payload.ingredients);
+  
+  log(`Normalized selectedCategory: ${selectedCategory}`);
+  log(`Normalized ingredients: ${JSON.stringify(normalizedIngredients)}`);
 
   if (!selectedCategory) {
+    log("ERROR: selectedCategory is empty after normalization");
     return {
       statusCode: 400,
       body: {
@@ -739,6 +747,7 @@ async function handleStart({
   }
 
   if (normalizedIngredients.length < 3) {
+    log(`ERROR: Only ${normalizedIngredients.length} ingredients, need at least 3`);
     return {
       statusCode: 400,
       body: {
@@ -751,12 +760,14 @@ async function handleStart({
 
   let normalizedProfile;
   try {
+    log("Fetching user profile...");
     normalizedProfile = await getUserProfile({
       endpoint,
       projectId,
       apiKey,
       userId: sessionUserId,
     });
+    log(`User profile fetched: ${JSON.stringify(normalizedProfile)}`);
   } catch (err) {
     log(
       `Falling back to request profile because user profile fetch failed: ${err?.message || err}`,
@@ -765,14 +776,18 @@ async function handleStart({
       payload.userProfile && typeof payload.userProfile === "object"
         ? payload.userProfile
         : {};
+    log(`Using fallback profile: ${JSON.stringify(normalizedProfile)}`);
   }
 
+  log("Building cache keys...");
   const keys = buildKeys({
     normalizedProfile,
     normalizedIngredients,
     normalizedCategory: selectedCategory,
   });
+  log(`Composite key: ${keys.compositeKey}`);
 
+  log("Checking cache...");
   const cacheRow = await fetchCacheByCompositeKey({
     endpoint,
     projectId,
@@ -783,26 +798,82 @@ async function handleStart({
     modelVersion: config.modelVersion,
     promptVersion: config.promptVersion,
   });
+  log(`Cache row: ${cacheRow ? "FOUND" : "NOT FOUND"}`);
 
   if (cacheRow) {
+    log("Cache hit detected, returning cached result...");
     const cacheRowId = mapRowId(cacheRow);
     const currentUsage = Number(cacheRow.usageCount || 0);
+    log(`Cache row ID: ${cacheRowId}`);
+    
     if (cacheRowId) {
-      await updateRow({
+      try {
+        await updateRow({
+          endpoint,
+          projectId,
+          apiKey,
+          databaseId: config.databaseId,
+          tableId: config.cacheTableId,
+          rowId: cacheRowId,
+          data: {
+            usageCount: currentUsage + 1,
+            lastUsedAt: nowIso(),
+          },
+        });
+        log("Cache usage count updated");
+      } catch (err) {
+        log(`Warning: Failed to update cache usage count: ${err?.message || err}`);
+      }
+    }
+
+    try {
+      const createdRequest = await createRow({
         endpoint,
         projectId,
         apiKey,
         databaseId: config.databaseId,
-        tableId: config.cacheTableId,
-        rowId: cacheRowId,
+        tableId: config.requestsTableId,
         data: {
-          usageCount: currentUsage + 1,
-          lastUsedAt: nowIso(),
+          userId: sessionUserId,
+          status: STATUS.COMPLETED,
+          profileKey: keys.profileKey,
+          ingredientsKey: keys.ingredientsKey,
+          compositeKey: keys.compositeKey,
+          selectedCategory,
+          ingredientsRawJson: keys.ingredientsJson,
+          profileRawJson: keys.profileJson,
+          resultJson: cacheRow.resultJson,
+          cacheHit: true,
+          errorCode: null,
+          errorMessage: null,
+          modelVersion: config.modelVersion,
+          promptVersion: config.promptVersion,
+          processingStartedAt: nowIso(),
+          completedAt: nowIso(),
         },
       });
-    }
+      log(`Cache hit request created: ${mapRowId(createdRequest)}`);
 
-    const createdRequest = await createRow({
+      return {
+        statusCode: 200,
+        body: {
+          ok: true,
+          status: "completed",
+          analysisRequestId: mapRowId(createdRequest),
+          cacheHit: true,
+          result: parseResultJson(cacheRow.resultJson),
+        },
+      };
+    } catch (err) {
+      log(`ERROR creating cache hit request: ${err?.message || err}`);
+      throw err;
+    }
+  }
+
+  log("No cache hit, creating new request...");
+  let requestRow;
+  try {
+    requestRow = await createRow({
       endpoint,
       projectId,
       apiKey,
@@ -810,63 +881,31 @@ async function handleStart({
       tableId: config.requestsTableId,
       data: {
         userId: sessionUserId,
-        status: STATUS.COMPLETED,
+        status: STATUS.PROCESSING,
         profileKey: keys.profileKey,
         ingredientsKey: keys.ingredientsKey,
         compositeKey: keys.compositeKey,
         selectedCategory,
         ingredientsRawJson: keys.ingredientsJson,
         profileRawJson: keys.profileJson,
-        resultJson: cacheRow.resultJson,
-        cacheHit: true,
+        resultJson: null,
+        cacheHit: false,
         errorCode: null,
         errorMessage: null,
         modelVersion: config.modelVersion,
         promptVersion: config.promptVersion,
         processingStartedAt: nowIso(),
-        completedAt: nowIso(),
+        completedAt: null,
       },
     });
-
-    return {
-      statusCode: 200,
-      body: {
-        ok: true,
-        status: "completed",
-        analysisRequestId: mapRowId(createdRequest),
-        cacheHit: true,
-        result: parseResultJson(cacheRow.resultJson),
-      },
-    };
+    log(`Request row created: ${JSON.stringify(requestRow)}`);
+  } catch (err) {
+    log(`ERROR creating request row: ${err?.message || err}`);
+    throw err;
   }
 
-  const requestRow = await createRow({
-    endpoint,
-    projectId,
-    apiKey,
-    databaseId: config.databaseId,
-    tableId: config.requestsTableId,
-    data: {
-      userId: sessionUserId,
-      status: STATUS.PROCESSING,
-      profileKey: keys.profileKey,
-      ingredientsKey: keys.ingredientsKey,
-      compositeKey: keys.compositeKey,
-      selectedCategory,
-      ingredientsRawJson: keys.ingredientsJson,
-      profileRawJson: keys.profileJson,
-      resultJson: null,
-      cacheHit: false,
-      errorCode: null,
-      errorMessage: null,
-      modelVersion: config.modelVersion,
-      promptVersion: config.promptVersion,
-      processingStartedAt: nowIso(),
-      completedAt: null,
-    },
-  });
-
   const requestId = mapRowId(requestRow);
+  log(`Request ID: ${requestId}`);
 
   await writeEvent({
     endpoint,
