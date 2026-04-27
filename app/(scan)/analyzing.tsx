@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -12,6 +12,7 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
+import { getAnalysisStatus, startAnalysis } from "@/libs/analysisEngine";
 import { extractIngredientsFromImage } from "@/libs/ingredientExtraction";
 import { useScan } from "../../context/ScanProvider";
 
@@ -34,15 +35,23 @@ export default function AnalyzingScreen() {
   const {
     capturedImageUri,
     selectedCategory,
+    extractedIngredients,
     setExtractedIngredients,
     setExtractionError,
+    setAnalysisRequestId,
+    setAnalysisStatus,
+    setAnalysisResult,
+    setAnalysisError,
     clearCapturedImage,
   } = useScan();
   const [progress, setProgress] = useState(12);
   const [tipIndex, setTipIndex] = useState(0);
+  const hasStartedFlowRef = useRef(false);
+  const activeRunIdRef = useRef(0);
   const params = useLocalSearchParams<{
     imageUri?: string | string[];
     category?: string | string[];
+    ingredients?: string | string[];
     mode?: "ingredients" | "analysis" | string | string[];
   }>();
   const orbitRotation = useSharedValue(0);
@@ -60,6 +69,27 @@ export default function AnalyzingScreen() {
     () => getParamValue(params.mode) ?? "ingredients",
     [params.mode],
   );
+  const ingredientsParam = useMemo(
+    () => getParamValue(params.ingredients),
+    [params.ingredients],
+  );
+  const analysisIngredients = useMemo(() => {
+    if (ingredientsParam && typeof ingredientsParam === "string") {
+      try {
+        const parsed = JSON.parse(ingredientsParam);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .filter((item): item is string => typeof item === "string")
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+      } catch {
+        // Fall back to context ingredients.
+      }
+    }
+
+    return extractedIngredients;
+  }, [extractedIngredients, ingredientsParam]);
 
   useEffect(() => {
     orbitRotation.value = withRepeat(
@@ -105,9 +135,9 @@ export default function AnalyzingScreen() {
 
   const processLabel = useMemo(() => {
     if (scanMode === "analysis") {
-      if (progress < 35) return "Reading formulation";
+      if (progress < 35) return "Checking cached analysis";
       if (progress < 70) return "Analyzing chemical compounds";
-      return "Structuring analysis output";
+      return "Structuring personalized result";
     }
 
     if (progress < 35) {
@@ -152,16 +182,138 @@ export default function AnalyzingScreen() {
   );
 
   const runExtraction = useCallback(async () => {
+    if (hasStartedFlowRef.current) {
+      return;
+    }
+
+    hasStartedFlowRef.current = true;
+
     if (scanMode === "analysis") {
+      const runId = activeRunIdRef.current + 1;
+      activeRunIdRef.current = runId;
+
       setExtractionError(null);
+      setAnalysisError(null);
+      setAnalysisResult(null);
+      setAnalysisStatus("idle");
+      setAnalysisRequestId(null);
       setProgress(12);
       setTipIndex(0);
 
-      // Simulate delay for final analysis since API isn't connected yet
-      setTimeout(() => {
-        setProgress(100);
-        router.replace("/(scan)/Results");
-      }, 4500);
+      if (!category) {
+        if (activeRunIdRef.current !== runId) {
+          return;
+        }
+
+        const message =
+          "Product category is missing. Please choose a category and retry.";
+        setAnalysisStatus("failed");
+        setAnalysisError(message);
+        setExtractionError(message);
+        router.replace({
+          pathname: "/(scan)/error",
+          params: { errorMessage: message },
+        });
+        return;
+      }
+
+      if (analysisIngredients.length < 3) {
+        if (activeRunIdRef.current !== runId) {
+          return;
+        }
+
+        const message =
+          "Please provide at least 3 ingredients before analysis.";
+        setAnalysisStatus("failed");
+        setAnalysisError(message);
+        setExtractionError(message);
+        router.replace({
+          pathname: "/(scan)/error",
+          params: { errorMessage: message },
+        });
+        return;
+      }
+
+      try {
+        if (activeRunIdRef.current !== runId) {
+          return;
+        }
+
+        const startResponse = await startAnalysis({
+          selectedCategory: category,
+          ingredients: analysisIngredients,
+        });
+
+        if (activeRunIdRef.current !== runId) {
+          return;
+        }
+
+        setAnalysisRequestId(startResponse.analysisRequestId || null);
+
+        if (startResponse.status === "completed" && startResponse.ok) {
+          setAnalysisResult(startResponse.result);
+          setAnalysisStatus("completed");
+          setProgress(100);
+          router.replace("/(scan)/Results");
+          return;
+        }
+
+        if (!startResponse.analysisRequestId) {
+          throw new Error(
+            "Analysis request ID is missing from start response.",
+          );
+        }
+
+        setAnalysisStatus("accepted");
+
+        const maxPollAttempts = 14;
+        for (let attempt = 0; attempt < maxPollAttempts; attempt += 1) {
+          if (activeRunIdRef.current !== runId) {
+            return;
+          }
+
+          const statusResponse = await getAnalysisStatus(
+            startResponse.analysisRequestId,
+          );
+
+          if (activeRunIdRef.current !== runId) {
+            return;
+          }
+
+          if (statusResponse.status === "completed" && statusResponse.ok) {
+            setAnalysisResult(statusResponse.result);
+            setAnalysisStatus("completed");
+            setProgress(100);
+            router.replace("/(scan)/Results");
+            return;
+          }
+
+          setAnalysisStatus("processing");
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, 1800);
+          });
+        }
+
+        throw new Error("Analysis timed out. Please try again.");
+      } catch (err) {
+        if (activeRunIdRef.current !== runId) {
+          return;
+        }
+
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Analysis failed. Please try again.";
+
+        setAnalysisStatus("failed");
+        setAnalysisError(message);
+        setExtractionError(message);
+        router.replace({
+          pathname: "/(scan)/error",
+          params: { errorMessage: message },
+        });
+      }
+
       return;
     }
 
@@ -203,8 +355,13 @@ export default function AnalyzingScreen() {
     }
   }, [
     category,
+    analysisIngredients,
     imageUri,
     scanMode,
+    setAnalysisError,
+    setAnalysisRequestId,
+    setAnalysisResult,
+    setAnalysisStatus,
     setExtractedIngredients,
     setExtractionError,
   ]);

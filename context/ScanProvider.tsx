@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 
+import type { AnalysisResultPayload } from "@/libs/analysisEngine";
 import type { ProductCategory } from "@/types/productCategory";
 
 type IngredientMutationResult = {
@@ -57,6 +58,17 @@ type ScanContextValue = {
   clearExtractedIngredients: () => void;
   extractionError: string | null;
   setExtractionError: (error: string | null) => void;
+  analysisRequestId: string | null;
+  setAnalysisRequestId: (requestId: string | null) => void;
+  analysisStatus: "idle" | "accepted" | "processing" | "completed" | "failed";
+  setAnalysisStatus: (
+    status: "idle" | "accepted" | "processing" | "completed" | "failed",
+  ) => void;
+  analysisResult: AnalysisResultPayload | null;
+  setAnalysisResult: (result: AnalysisResultPayload | null) => void;
+  analysisError: string | null;
+  setAnalysisError: (error: string | null) => void;
+  clearAnalysisState: () => void;
   clearCapturedImage: () => void;
   clearScanSession: () => void;
 };
@@ -77,6 +89,22 @@ export function ScanProvider({ children }: ScanProviderProps) {
     string[]
   >([]);
   const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [analysisRequestId, setAnalysisRequestId] = useState<string | null>(
+    null,
+  );
+  const [analysisStatus, setAnalysisStatus] = useState<
+    "idle" | "accepted" | "processing" | "completed" | "failed"
+  >("idle");
+  const [analysisResult, setAnalysisResult] =
+    useState<AnalysisResultPayload | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  const clearAnalysisState = useCallback(() => {
+    setAnalysisRequestId(null);
+    setAnalysisStatus("idle");
+    setAnalysisResult(null);
+    setAnalysisError(null);
+  }, []);
 
   const setCapturedImageUri = useCallback((uri: string | null) => {
     setCapturedImageUriState(uri);
@@ -84,12 +112,14 @@ export function ScanProvider({ children }: ScanProviderProps) {
     if (uri) {
       setExtractedIngredientsState([]);
       setExtractionError(null);
+      clearAnalysisState();
     }
-  }, []);
+  }, [clearAnalysisState]);
 
   const setExtractedIngredients = useCallback((ingredients: string[]) => {
     setExtractedIngredientsState(sanitizeIngredientList(ingredients));
-  }, []);
+    clearAnalysisState();
+  }, [clearAnalysisState]);
 
   const addIngredient = useCallback(
     (ingredient: string): IngredientMutationResult => {
@@ -120,9 +150,11 @@ export function ScanProvider({ children }: ScanProviderProps) {
         return { ok: false, reason: "DUPLICATE" };
       }
 
+      clearAnalysisState();
+
       return { ok: true };
     },
-    [],
+    [clearAnalysisState],
   );
 
   const updateIngredient = useCallback(
@@ -161,9 +193,13 @@ export function ScanProvider({ children }: ScanProviderProps) {
         return nextIngredients;
       });
 
+      if (nextResult.ok) {
+        clearAnalysisState();
+      }
+
       return nextResult;
     },
-    [],
+    [clearAnalysisState],
   );
 
   const removeIngredient = useCallback(
@@ -183,20 +219,24 @@ export function ScanProvider({ children }: ScanProviderProps) {
         return { ok: false, reason: "OUT_OF_RANGE" };
       }
 
+      clearAnalysisState();
+
       return { ok: true };
     },
-    [],
+    [clearAnalysisState],
   );
 
   const clearExtractedIngredients = useCallback(() => {
     setExtractedIngredientsState([]);
-  }, []);
+    clearAnalysisState();
+  }, [clearAnalysisState]);
 
   const clearCapturedImage = useCallback(() => {
     setCapturedImageUriState(null);
     setExtractedIngredientsState([]);
     setExtractionError(null);
-  }, []);
+    clearAnalysisState();
+  }, [clearAnalysisState]);
 
   const clearScanSession = useCallback(() => {
     setSelectedCategory(null);
@@ -217,6 +257,15 @@ export function ScanProvider({ children }: ScanProviderProps) {
       clearExtractedIngredients,
       extractionError,
       setExtractionError,
+      analysisRequestId,
+      setAnalysisRequestId,
+      analysisStatus,
+      setAnalysisStatus,
+      analysisResult,
+      setAnalysisResult,
+      analysisError,
+      setAnalysisError,
+      clearAnalysisState,
       clearCapturedImage,
       clearScanSession,
     }),
@@ -228,6 +277,11 @@ export function ScanProvider({ children }: ScanProviderProps) {
       clearScanSession,
       extractedIngredients,
       extractionError,
+      analysisRequestId,
+      analysisStatus,
+      analysisResult,
+      analysisError,
+      clearAnalysisState,
       removeIngredient,
       selectedCategory,
       setCapturedImageUri,

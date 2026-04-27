@@ -2,6 +2,7 @@ import BottomNav, {
   BOTTOM_NAV_HEIGHT,
   type BottomNavItem,
 } from "@/components/BottomNav";
+import { useScan } from "@/context/ScanProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { router, usePathname } from "expo-router";
 import React from "react";
@@ -212,11 +213,44 @@ const toneMeta: Record<
 };
 
 const Results = () => {
+  const { analysisResult } = useScan();
   const [showAllIngredients, setShowAllIngredients] = React.useState(false);
   const pathname = usePathname();
   const { bottom: bottomInset } = useSafeAreaInsets();
-  const theme = THEME_BY_STATE[PREVIEW_STATE];
-  const ingredientItems = INGREDIENTS_BY_STATE[PREVIEW_STATE];
+  const resolvedState: ResultState =
+    analysisResult?.analysis.state || PREVIEW_STATE;
+  const fallbackTheme = THEME_BY_STATE[resolvedState];
+  const theme = {
+    ...fallbackTheme,
+    score: analysisResult?.analysis.score ?? fallbackTheme.score,
+    badgeText: analysisResult?.analysis.badgeText ?? fallbackTheme.badgeText,
+    title: analysisResult?.analysis.title ?? fallbackTheme.title,
+    description:
+      analysisResult?.analysis.description ?? fallbackTheme.description,
+  };
+  const ingredientItems: IngredientItem[] =
+    analysisResult?.ingredients?.length
+      ? analysisResult.ingredients.map((item) => ({
+          id: item.id,
+          name: item.name,
+          chemicalEffect: item.chemicalEffect,
+          benefitText: item.benefitText,
+          tone: item.tone,
+        }))
+      : INGREDIENTS_BY_STATE[resolvedState];
+  const recommendationItems: RecommendationItem[] =
+    analysisResult?.recommendations?.length
+      ? analysisResult.recommendations.map((recommendation, index) => ({
+          id: recommendation.id,
+          productName: recommendation.productName,
+          why: recommendation.why,
+          match: recommendation.match,
+          image:
+            index % 2 === 0
+              ? require("../../assets/images/Verdant Botanics.png")
+              : require("../../assets/images/Mist & Clay.png"),
+        }))
+      : RECOMMENDATIONS;
   const COLLAPSED_INGREDIENT_COUNT = 2;
   const hasHiddenIngredients =
     ingredientItems.length > COLLAPSED_INGREDIENT_COUNT;
@@ -488,7 +522,7 @@ const Results = () => {
           </View>
 
           <View className="mt-3 gap-3">
-            {RECOMMENDATIONS.map((recommendation) => (
+            {recommendationItems.map((recommendation) => (
               <View
                 key={recommendation.id}
                 className="flex-row items-center rounded-2xl border border-[#E2E8F0] bg-white px-3 py-3"

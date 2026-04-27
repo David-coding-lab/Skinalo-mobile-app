@@ -5,6 +5,24 @@ const DEFAULT_TIMEOUT_MS = 20000;
 const DEFAULT_RETRY_ATTEMPTS = 2;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
 
+const ENV = {
+  APPWRITE_FUNCTION_API_ENDPOINT: process.env.APPWRITE_FUNCTION_API_ENDPOINT,
+  APPWRITE_FUNCTION_PROJECT_ID: process.env.APPWRITE_FUNCTION_PROJECT_ID,
+  APPWRITE_API_KEY: process.env.APPWRITE_API_KEY,
+  ANALYSIS_DATABASE_ID: process.env.ANALYSIS_DATABASE_ID,
+  ANALYSIS_REQUESTS_TABLE_ID: process.env.ANALYSIS_REQUESTS_TABLE_ID,
+  ANALYSIS_CACHE_TABLE_ID: process.env.ANALYSIS_CACHE_TABLE_ID,
+  ANALYSIS_EVENTS_TABLE_ID: process.env.ANALYSIS_EVENTS_TABLE_ID,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  ANALYSIS_MODEL: process.env.ANALYSIS_MODEL,
+  ANALYSIS_MODEL_VERSION: process.env.ANALYSIS_MODEL_VERSION,
+  ANALYSIS_PROMPT_VERSION: process.env.ANALYSIS_PROMPT_VERSION,
+  ANALYSIS_SYSTEM_PROMPT: process.env.ANALYSIS_SYSTEM_PROMPT,
+  ANALYSIS_REQUEST_TIMEOUT_MS: process.env.ANALYSIS_REQUEST_TIMEOUT_MS,
+  ANALYSIS_RETRY_ATTEMPTS: process.env.ANALYSIS_RETRY_ATTEMPTS,
+  ANALYSIS_RETRY_BASE_DELAY_MS: process.env.ANALYSIS_RETRY_BASE_DELAY_MS,
+};
+
 const STATUS = {
   QUEUED: "queued",
   PROCESSING: "processing",
@@ -13,7 +31,7 @@ const STATUS = {
 };
 
 function getEnv(name, fallback = "") {
-  const value = process.env[name];
+  const value = ENV[name];
   if (typeof value === "string" && value.trim().length > 0) {
     return value.trim();
   }
@@ -135,13 +153,19 @@ function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function buildKeys({ normalizedProfile, normalizedIngredients, normalizedCategory }) {
+function buildKeys({
+  normalizedProfile,
+  normalizedIngredients,
+  normalizedCategory,
+}) {
   const profileJson = stableStringify(normalizedProfile);
   const ingredientsJson = JSON.stringify(normalizedIngredients);
 
   const profileKey = sha256(profileJson);
   const ingredientsKey = sha256(ingredientsJson);
-  const compositeKey = sha256(`${profileKey}|${ingredientsKey}|${normalizedCategory.toLowerCase()}`);
+  const compositeKey = sha256(
+    `${profileKey}|${ingredientsKey}|${normalizedCategory.toLowerCase()}`,
+  );
 
   return {
     profileJson,
@@ -191,7 +215,14 @@ function mapRowId(row) {
   return row.$id || row.id || "";
 }
 
-async function appwriteRequest({ endpoint, projectId, apiKey, method, path, body }) {
+async function appwriteRequest({
+  endpoint,
+  projectId,
+  apiKey,
+  method,
+  path,
+  body,
+}) {
   const response = await fetch(`${endpoint}${path}`, {
     method,
     headers: {
@@ -230,7 +261,10 @@ async function getUserProfile({ endpoint, projectId, apiKey, userId }) {
 
   const prefs = payload?.prefs || {};
 
-  if (typeof prefs.clinicalProfile === "string" && prefs.clinicalProfile.trim()) {
+  if (
+    typeof prefs.clinicalProfile === "string" &&
+    prefs.clinicalProfile.trim()
+  ) {
     const parsed = parseJsonSafe(prefs.clinicalProfile);
     if (parsed && typeof parsed === "object") {
       return parsed;
@@ -274,18 +308,32 @@ async function listRows({
   return mapRowsList(payload);
 }
 
-async function getRow({ endpoint, projectId, apiKey, databaseId, tableId, rowId }) {
+async function getRow({
+  endpoint,
+  projectId,
+  apiKey,
+  databaseId,
+  tableId,
+  rowId,
+}) {
   return appwriteRequest({
     endpoint,
     projectId,
     apiKey,
     method: "GET",
-    path:
-      `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows/${encodeURIComponent(rowId)}`,
+    path: `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows/${encodeURIComponent(rowId)}`,
   });
 }
 
-async function createRow({ endpoint, projectId, apiKey, databaseId, tableId, data, rowId = "unique()" }) {
+async function createRow({
+  endpoint,
+  projectId,
+  apiKey,
+  databaseId,
+  tableId,
+  data,
+  rowId = "unique()",
+}) {
   return appwriteRequest({
     endpoint,
     projectId,
@@ -299,14 +347,21 @@ async function createRow({ endpoint, projectId, apiKey, databaseId, tableId, dat
   });
 }
 
-async function updateRow({ endpoint, projectId, apiKey, databaseId, tableId, rowId, data }) {
+async function updateRow({
+  endpoint,
+  projectId,
+  apiKey,
+  databaseId,
+  tableId,
+  rowId,
+  data,
+}) {
   return appwriteRequest({
     endpoint,
     projectId,
     apiKey,
     method: "PATCH",
-    path:
-      `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows/${encodeURIComponent(rowId)}`,
+    path: `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows/${encodeURIComponent(rowId)}`,
     body: {
       data,
     },
@@ -371,7 +426,10 @@ function validateAnalysisPayload(payload) {
     }
 
     if (typeof item.id !== "string" || typeof item.name !== "string") {
-      return { ok: false, reason: "ingredients item must include id and name strings." };
+      return {
+        ok: false,
+        reason: "ingredients item must include id and name strings.",
+      };
     }
 
     if (!tones.has(item.tone)) {
@@ -394,7 +452,8 @@ function validateAnalysisPayload(payload) {
   if (
     typeof normalized.productMatches === "undefined" ||
     normalized.productMatches === null ||
-    (Array.isArray(normalized.productMatches) && normalized.productMatches.length === 0)
+    (Array.isArray(normalized.productMatches) &&
+      normalized.productMatches.length === 0)
   ) {
     normalized.productMatches = "No recommendation found";
   }
@@ -402,7 +461,12 @@ function validateAnalysisPayload(payload) {
   return { ok: true, payload: normalized };
 }
 
-function buildGeminiBody({ systemPrompt, selectedCategory, normalizedIngredients, normalizedProfile }) {
+function buildGeminiBody({
+  systemPrompt,
+  selectedCategory,
+  normalizedIngredients,
+  normalizedProfile,
+}) {
   const requestPayload = {
     selectedCategory,
     ingredients: normalizedIngredients,
@@ -435,7 +499,13 @@ function isRetryableGeminiStatus(statusCode) {
   return statusCode === 408 || statusCode === 429 || statusCode >= 500;
 }
 
-async function fetchGeminiWithRetry({ endpoint, requestBody, timeoutMs, maxAttempts, baseDelayMs }) {
+async function fetchGeminiWithRetry({
+  endpoint,
+  requestBody,
+  timeoutMs,
+  maxAttempts,
+  baseDelayMs,
+}) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -452,7 +522,11 @@ async function fetchGeminiWithRetry({ endpoint, requestBody, timeoutMs, maxAttem
         signal: controller.signal,
       });
 
-      if (!response.ok && isRetryableGeminiStatus(response.status) && attempt < maxAttempts) {
+      if (
+        !response.ok &&
+        isRetryableGeminiStatus(response.status) &&
+        attempt < maxAttempts
+      ) {
         await response.text().catch(() => null);
         await sleep(baseDelayMs * 2 ** (attempt - 1));
         continue;
@@ -573,10 +647,16 @@ async function buildAnalysisFromGemini({
   normalizedIngredients,
   normalizedProfile,
 }) {
-  const timeoutMs = toPositiveInt(process.env.ANALYSIS_REQUEST_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
-  const maxAttempts = toPositiveInt(process.env.ANALYSIS_RETRY_ATTEMPTS, DEFAULT_RETRY_ATTEMPTS);
+  const timeoutMs = toPositiveInt(
+    getEnv("ANALYSIS_REQUEST_TIMEOUT_MS"),
+    DEFAULT_TIMEOUT_MS,
+  );
+  const maxAttempts = toPositiveInt(
+    getEnv("ANALYSIS_RETRY_ATTEMPTS"),
+    DEFAULT_RETRY_ATTEMPTS,
+  );
   const baseDelayMs = toPositiveInt(
-    process.env.ANALYSIS_RETRY_BASE_DELAY_MS,
+    getEnv("ANALYSIS_RETRY_BASE_DELAY_MS"),
     DEFAULT_RETRY_BASE_DELAY_MS,
   );
 
@@ -678,8 +758,13 @@ async function handleStart({
       userId: sessionUserId,
     });
   } catch (err) {
-    log(`Falling back to request profile because user profile fetch failed: ${err?.message || err}`);
-    normalizedProfile = payload.userProfile && typeof payload.userProfile === "object" ? payload.userProfile : {};
+    log(
+      `Falling back to request profile because user profile fetch failed: ${err?.message || err}`,
+    );
+    normalizedProfile =
+      payload.userProfile && typeof payload.userProfile === "object"
+        ? payload.userProfile
+        : {};
   }
 
   const keys = buildKeys({
@@ -763,7 +848,7 @@ async function handleStart({
     tableId: config.requestsTableId,
     data: {
       userId: sessionUserId,
-      status: STATUS.QUEUED,
+      status: STATUS.PROCESSING,
       profileKey: keys.profileKey,
       ingredientsKey: keys.ingredientsKey,
       compositeKey: keys.compositeKey,
@@ -776,7 +861,7 @@ async function handleStart({
       errorMessage: null,
       modelVersion: config.modelVersion,
       promptVersion: config.promptVersion,
-      processingStartedAt: null,
+      processingStartedAt: nowIso(),
       completedAt: null,
     },
   });
@@ -790,62 +875,11 @@ async function handleStart({
     databaseId: config.databaseId,
     eventsTableId: config.eventsTableId,
     requestId,
-    eventType: "REQUEST_QUEUED",
-    message: "Analysis request queued.",
-  });
-
-  return {
-    statusCode: 202,
-    body: {
-      ok: true,
-      status: "accepted",
-      analysisRequestId: requestId,
-      cacheHit: false,
-    },
-  };
-}
-
-async function processQueuedRequest({
-  requestRow,
-  sessionUserId,
-  config,
-  endpoint,
-  projectId,
-  apiKey,
-}) {
-  const requestId = mapRowId(requestRow);
-
-  await updateRow({
-    endpoint,
-    projectId,
-    apiKey,
-    databaseId: config.databaseId,
-    tableId: config.requestsTableId,
-    rowId: requestId,
-    data: {
-      status: STATUS.PROCESSING,
-      processingStartedAt: nowIso(),
-      errorCode: null,
-      errorMessage: null,
-    },
-  });
-
-  await writeEvent({
-    endpoint,
-    projectId,
-    apiKey,
-    databaseId: config.databaseId,
-    eventsTableId: config.eventsTableId,
-    requestId,
-    eventType: "PROCESSING_STARTED",
-    message: "Analysis processing started.",
+    eventType: "REQUEST_PROCESSING_STARTED",
+    message: "Analysis request started.",
   });
 
   try {
-    const selectedCategory = normalizeCategory(requestRow.selectedCategory);
-    const normalizedIngredients = parseJsonSafe(requestRow.ingredientsRawJson) || [];
-    const normalizedProfile = parseJsonSafe(requestRow.profileRawJson) || {};
-
     const analysisResult = await buildAnalysisFromGemini({
       geminiApiKey: config.geminiApiKey,
       modelName: config.modelName,
@@ -864,12 +898,12 @@ async function processQueuedRequest({
       databaseId: config.databaseId,
       cacheTableId: config.cacheTableId,
       payload: {
-        compositeKey: requestRow.compositeKey,
-        profileKey: requestRow.profileKey,
-        ingredientsKey: requestRow.ingredientsKey,
+        compositeKey: keys.compositeKey,
+        profileKey: keys.profileKey,
+        ingredientsKey: keys.ingredientsKey,
         selectedCategory,
-        ingredientsNormalizedJson: requestRow.ingredientsRawJson,
-        profileNormalizedJson: requestRow.profileRawJson,
+        ingredientsNormalizedJson: keys.ingredientsJson,
+        profileNormalizedJson: keys.profileJson,
         resultJson,
         modelProvider: "google",
         modelName: config.modelName,
@@ -962,9 +996,18 @@ async function processQueuedRequest({
   }
 }
 
-async function handleStatus({ payload, sessionUserId, config, endpoint, projectId, apiKey }) {
+async function handleStatus({
+  payload,
+  sessionUserId,
+  config,
+  endpoint,
+  projectId,
+  apiKey,
+}) {
   const analysisRequestId =
-    typeof payload.analysisRequestId === "string" ? payload.analysisRequestId.trim() : "";
+    typeof payload.analysisRequestId === "string"
+      ? payload.analysisRequestId.trim()
+      : "";
 
   if (!analysisRequestId) {
     return {
@@ -1023,17 +1066,6 @@ async function handleStatus({ payload, sessionUserId, config, endpoint, projectI
     };
   }
 
-  if (requestRow.status === STATUS.QUEUED) {
-    return processQueuedRequest({
-      requestRow,
-      sessionUserId,
-      config,
-      endpoint,
-      projectId,
-      apiKey,
-    });
-  }
-
   return {
     statusCode: 200,
     body: {
@@ -1049,14 +1081,17 @@ export default async ({ req, res, log, error }) => {
   const projectId = getEnv("APPWRITE_FUNCTION_PROJECT_ID");
   const apiKey = getEnv("APPWRITE_API_KEY");
   const databaseId = getEnv("ANALYSIS_DATABASE_ID");
-  const requestsTableId = getEnv("ANALYSIS_REQUESTS_TABLE_ID", "analysis_requests");
+  const requestsTableId = getEnv(
+    "ANALYSIS_REQUESTS_TABLE_ID",
+    "analysis_requests",
+  );
   const cacheTableId = getEnv("ANALYSIS_CACHE_TABLE_ID", "analysis_cache");
   const eventsTableId = getEnv("ANALYSIS_EVENTS_TABLE_ID", "analysis_events");
   const geminiApiKey = getEnv("GEMINI_API_KEY");
   const modelName = getEnv("ANALYSIS_MODEL", DEFAULT_MODEL);
   const modelVersion = getEnv("ANALYSIS_MODEL_VERSION");
   const promptVersion = getEnv("ANALYSIS_PROMPT_VERSION");
-  const systemPrompt = process.env.ANALYSIS_SYSTEM_PROMPT;
+  const systemPrompt = getEnv("ANALYSIS_SYSTEM_PROMPT");
 
   if (!endpoint || !projectId || !apiKey || !databaseId) {
     return res.json(
@@ -1080,7 +1115,7 @@ export default async ({ req, res, log, error }) => {
     );
   }
 
-  if (typeof systemPrompt !== "string" || !systemPrompt.trim()) {
+  if (!systemPrompt) {
     return res.json(
       {
         ok: false,
@@ -1129,7 +1164,10 @@ export default async ({ req, res, log, error }) => {
     );
   }
 
-  const action = typeof payload.action === "string" ? payload.action.trim().toLowerCase() : "start";
+  const action =
+    typeof payload.action === "string"
+      ? payload.action.trim().toLowerCase()
+      : "start";
 
   try {
     if (action === "status") {

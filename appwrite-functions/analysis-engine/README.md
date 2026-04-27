@@ -22,6 +22,17 @@ Appwrite cloud function for cached, profile-aware skincare analysis.
 - `ANALYSIS_PROMPT_VERSION`
 - `ANALYSIS_SYSTEM_PROMPT` (locked prompt text)
 
+## Optional Environment Variables
+
+- `ANALYSIS_REQUEST_TIMEOUT_MS` (default: `20000`)
+- `ANALYSIS_RETRY_ATTEMPTS` (default: `2`)
+- `ANALYSIS_RETRY_BASE_DELAY_MS` (default: `500`)
+
+## Authentication Requirement
+
+- Function execution expects an authenticated Appwrite user context.
+- Requests without `x-appwrite-user-id` are rejected with `401`.
+
 ## Request Shape
 
 Start analysis (cache-first):
@@ -43,9 +54,23 @@ Poll status:
 }
 ```
 
+Status calls can move a queued request into processing and may return `processing`, `completed`, or `failed`.
+
 ## Response Status Values
 
 - `accepted`
 - `processing`
 - `completed`
 - `failed`
+
+## Prompt Guardrail
+
+- `ANALYSIS_SYSTEM_PROMPT` is mandatory.
+- This function does not use a fallback prompt.
+
+## Troubleshooting
+
+- `SERVER_MISCONFIGURED`: check missing Appwrite/Gemini env variables.
+- `PROMPT_NOT_CONFIGURED`: set `ANALYSIS_SYSTEM_PROMPT` exactly.
+- `INTERNAL_ERROR` on DB operations: verify `ANALYSIS_DATABASE_ID` and table IDs.
+- `INTERNAL_ERROR` on user profile fetch: verify API key has users read scope.
