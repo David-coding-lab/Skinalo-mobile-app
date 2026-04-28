@@ -10,7 +10,7 @@ Appwrite cloud function for cached, profile-aware skincare analysis.
 ## Required Environment Variables
 
 - `APPWRITE_API_KEY`
-- `APPWRITE_FUNCTION_API_ENDPOINT`
+- `APPWRITE_FUNCTION_API_ENDPOINT` (must include `/v1`, for example `https://fra.cloud.appwrite.io/v1`)
 - `APPWRITE_FUNCTION_PROJECT_ID`
 - `ANALYSIS_DATABASE_ID`
 - `ANALYSIS_REQUESTS_TABLE_ID` (default: `analysis_requests`)
@@ -88,3 +88,13 @@ On each execution, the function verifies:
 - `analysis_events` table metadata is reachable
 
 If any check fails, execution returns a configuration error before analysis processing starts.
+
+## Appwrite REST Shape
+
+This function uses the collections/documents REST routes for database access:
+
+- `GET /databases/{databaseId}/collections/{collectionId}`
+- `GET /databases/{databaseId}/collections/{collectionId}/documents`
+- `GET /databases/{databaseId}/collections/{collectionId}/documents/{documentId}`
+- `POST /databases/{databaseId}/collections/{collectionId}/documents`
+- `PATCH /databases/{databaseId}/collections/{collectionId}/documents/{documentId}`

@@ -191,6 +191,20 @@ function encodeTablePath(value) {
   return encodeURIComponent(value);
 }
 
+function normalizeAppwriteEndpoint(endpoint) {
+  const trimmed =
+    typeof endpoint === "string" ? endpoint.trim().replace(/\/+$/, "") : "";
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.endsWith("/v1")) {
+    return trimmed;
+  }
+
+  return `${trimmed}/v1`;
+}
+
 function mapRowsList(payload) {
   if (!payload || typeof payload !== "object") {
     return [];
@@ -223,7 +237,8 @@ async function appwriteRequest({
   path,
   body,
 }) {
-  const response = await fetch(`${endpoint}${path}`, {
+  const baseEndpoint = normalizeAppwriteEndpoint(endpoint);
+  const response = await fetch(`${baseEndpoint}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -268,7 +283,7 @@ async function getTable({ endpoint, projectId, apiKey, databaseId, tableId }) {
     projectId,
     apiKey,
     method: "GET",
-    path: `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}`,
+    path: `/databases/${encodeTablePath(databaseId)}/collections/${encodeTablePath(tableId)}`,
   });
 }
 
@@ -393,7 +408,7 @@ async function listRows({
   queries,
 }) {
   const path =
-    `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows` +
+    `/databases/${encodeTablePath(databaseId)}/collections/${encodeTablePath(tableId)}/documents` +
     buildQueryString(queries || []);
 
   const payload = await appwriteRequest({
@@ -420,7 +435,7 @@ async function getRow({
     projectId,
     apiKey,
     method: "GET",
-    path: `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows/${encodeURIComponent(rowId)}`,
+    path: `/databases/${encodeTablePath(databaseId)}/collections/${encodeTablePath(tableId)}/documents/${encodeURIComponent(rowId)}`,
   });
 }
 
@@ -438,9 +453,9 @@ async function createRow({
     projectId,
     apiKey,
     method: "POST",
-    path: `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows`,
+    path: `/databases/${encodeTablePath(databaseId)}/collections/${encodeTablePath(tableId)}/documents`,
     body: {
-      rowId,
+      documentId: rowId,
       data,
     },
   });
@@ -460,7 +475,7 @@ async function updateRow({
     projectId,
     apiKey,
     method: "PATCH",
-    path: `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}/rows/${encodeURIComponent(rowId)}`,
+    path: `/databases/${encodeTablePath(databaseId)}/collections/${encodeTablePath(tableId)}/documents/${encodeURIComponent(rowId)}`,
     body: {
       data,
     },
