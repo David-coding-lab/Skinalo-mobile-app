@@ -30,6 +30,8 @@ const STATUS = {
   FAILED: "failed",
 };
 
+const EMPTY_RESULT_JSON = "{}";
+
 function getEnv(name, fallback = "") {
   const value = ENV[name];
   if (typeof value === "string" && value.trim().length > 0) {
@@ -1022,7 +1024,7 @@ async function handleStart({
         selectedCategory,
         ingredientsRawJson: keys.ingredientsJson,
         profileRawJson: keys.profileJson,
-        resultJson: null,
+        resultJson: EMPTY_RESULT_JSON,
         cacheHit: false,
         errorCode: null,
         errorMessage: null,
