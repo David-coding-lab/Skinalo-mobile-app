@@ -74,6 +74,8 @@ Status calls are read-only and return `processing`, `completed`, or `failed`.
 - `CONFIG_DATABASE_NOT_FOUND`: verify `ANALYSIS_DATABASE_ID` exists in the active Appwrite project.
 - `CONFIG_TABLE_NOT_FOUND`: verify table IDs for `ANALYSIS_REQUESTS_TABLE_ID`, `ANALYSIS_CACHE_TABLE_ID`, and `ANALYSIS_EVENTS_TABLE_ID`.
 - `CONFIG_RESOURCE_NOT_FOUND`: function reached Appwrite but a configured DB resource could not be resolved.
+- `Cache lookup failed or timed out: Invalid query: Syntax error`: ensure query strings use Appwrite REST syntax like `equal("field", ["value"])` without extra escaping.
+- `Gemini call times out`: increase the function timeout in Appwrite console to 120 seconds for this deployment.
 - `PROMPT_NOT_CONFIGURED`: set `ANALYSIS_SYSTEM_PROMPT` exactly.
 - `INTERNAL_ERROR` on DB operations: verify `ANALYSIS_DATABASE_ID` and table IDs.
 - `INTERNAL_ERROR` on user profile fetch: verify API key has users read scope.

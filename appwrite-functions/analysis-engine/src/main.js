@@ -719,9 +719,9 @@ async function fetchCacheByCompositeKey({
     databaseId,
     tableId: cacheTableId,
     queries: [
-      `equal(\"compositeKey\", [\"${compositeKey}\"])`,
-      `equal(\"modelVersion\", [\"${modelVersion}\"])`,
-      `equal(\"promptVersion\", [\"${promptVersion}\"])`,
+      `equal("compositeKey", ["${compositeKey}"])`,
+      `equal("modelVersion", ["${modelVersion}"])`,
+      `equal("promptVersion", ["${promptVersion}"])`,
       "limit(1)",
     ],
   });
