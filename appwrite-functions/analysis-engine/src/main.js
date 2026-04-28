@@ -262,6 +262,16 @@ async function getDatabase({ endpoint, projectId, apiKey, databaseId }) {
   });
 }
 
+async function getTable({ endpoint, projectId, apiKey, databaseId, tableId }) {
+  return appwriteRequest({
+    endpoint,
+    projectId,
+    apiKey,
+    method: "GET",
+    path: `/databases/${encodeTablePath(databaseId)}/tables/${encodeTablePath(tableId)}`,
+  });
+}
+
 function createConfigError(code, message, details) {
   const err = new Error(message);
   err.errorCode = code;
@@ -305,13 +315,12 @@ async function verifyAnalysisResources({
 
   for (const table of tables) {
     try {
-      await listRows({
+      await getTable({
         endpoint,
         projectId,
         apiKey,
         databaseId,
         tableId: table.id,
-        queries: ["limit(1)"],
       });
     } catch (err) {
       if (err?.statusCode === 404) {

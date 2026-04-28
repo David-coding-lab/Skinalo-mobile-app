@@ -83,8 +83,8 @@ Status calls are read-only and return `processing`, `completed`, or `failed`.
 On each execution, the function verifies:
 
 - Database exists (`ANALYSIS_DATABASE_ID`)
-- `analysis_requests` table is reachable
-- `analysis_cache` table is reachable
-- `analysis_events` table is reachable
+- `analysis_requests` table metadata is reachable
+- `analysis_cache` table metadata is reachable
+- `analysis_events` table metadata is reachable
 
 If any check fails, execution returns a configuration error before analysis processing starts.
