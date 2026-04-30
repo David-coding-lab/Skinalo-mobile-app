@@ -13,8 +13,6 @@ type AnalysisErrorState = {
   code: string;
   title: string;
   summary: string;
-  details: string;
-  tips: string[];
   primaryActionLabel: string;
   secondaryActionLabel: string;
   primaryAction: () => void;
@@ -37,23 +35,40 @@ function getAnalysisErrorState(
 ): AnalysisErrorState {
   const normalized = (message || "").toLowerCase();
 
+  // Check for network errors first (most specific)
+  if (
+    normalized.includes("network") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("failed to connect") ||
+    normalized.includes("no internet") ||
+    normalized.includes("offline") ||
+    normalized.includes("econnrefused") ||
+    normalized.includes("enotfound")
+  ) {
+    return {
+      code: "521",
+      title: "Network error",
+      summary: "Could not connect to the analysis service.",
+      primaryActionLabel: "Retry analysis",
+      secondaryActionLabel: "Review ingredients",
+      primaryAction: actions.retry,
+      secondaryAction: actions.review,
+      badgeLabel: "NETWORK ERROR",
+      accentColor: "#0F766E",
+      bgGradientStart: "#F0FEF9",
+      bgGradientEnd: "#E0FDF4",
+      iconBg: "#D1F9EE",
+    };
+  }
+
   if (
     normalized.includes("temporarily unavailable") ||
-    normalized.includes("service unavailable") ||
-    normalized.includes("timed out") ||
-    normalized.includes("network")
+    normalized.includes("service unavailable")
   ) {
     return {
       code: "503",
       title: "Analysis paused",
       summary: "The analysis service is temporarily unavailable.",
-      details:
-        "Your ingredients are still available. Try again in a few minutes, or review the input if you want to make a quick change before retrying.",
-      tips: [
-        "Come back later and retry the analysis from the same ingredients.",
-        "Keep the current product details saved so you do not need to rebuild them.",
-        "If the service remains unstable, return to manual input and continue when ready.",
-      ],
       primaryActionLabel: "Retry analysis",
       secondaryActionLabel: "Review ingredients",
       primaryAction: actions.retry,
@@ -63,6 +78,23 @@ function getAnalysisErrorState(
       bgGradientStart: "#F0F8F4",
       bgGradientEnd: "#E6F4EC",
       iconBg: "#D9F0E3",
+    };
+  }
+
+  if (normalized.includes("timed out")) {
+    return {
+      code: "408",
+      title: "Request timed out",
+      summary: "The analysis took too long to complete.",
+      primaryActionLabel: "Retry analysis",
+      secondaryActionLabel: "Review ingredients",
+      primaryAction: actions.retry,
+      secondaryAction: actions.review,
+      badgeLabel: "TIMEOUT",
+      accentColor: "#EA580C",
+      bgGradientStart: "#FEF5E8",
+      bgGradientEnd: "#FDE9D3",
+      iconBg: "#FDCEB0",
     };
   }
 
@@ -76,13 +108,6 @@ function getAnalysisErrorState(
       title: "Input needs attention",
       summary:
         "The analysis could not start because the inputs are incomplete.",
-      details:
-        "Open manual input, update the category or ingredient list, and launch analysis again once everything is ready.",
-      tips: [
-        "Choose the category that best matches the product first.",
-        "Make sure the ingredient list has at least three items.",
-        "Once the inputs are updated, retry the analysis from manual input.",
-      ],
       primaryActionLabel: "Edit inputs",
       secondaryActionLabel: "Start over",
       primaryAction: actions.review,
@@ -104,13 +129,6 @@ function getAnalysisErrorState(
       code: "401",
       title: "Session required",
       summary: "You need to sign in again before analysis can continue.",
-      details:
-        "The analysis request could not complete because the current session is no longer valid.",
-      tips: [
-        "Sign in again to restore access to the analysis flow.",
-        "Return to the saved ingredients after you are back in the app.",
-        "You can also restart from the home screen if that is faster.",
-      ],
       primaryActionLabel: "Sign in again",
       secondaryActionLabel: "Review ingredients",
       primaryAction: actions.signIn,
@@ -127,14 +145,6 @@ function getAnalysisErrorState(
     code: "500",
     title: "Analysis could not finish",
     summary: "We could not complete the product analysis.",
-    details:
-      message ||
-      "The analysis service returned an unexpected error. Review the inputs and try again.",
-    tips: [
-      "Try the analysis again if the issue was temporary.",
-      "Review the ingredient list and category before retrying.",
-      "If needed, start a fresh scan from the beginning.",
-    ],
     primaryActionLabel: "Retry analysis",
     secondaryActionLabel: "Review ingredients",
     primaryAction: actions.retry,

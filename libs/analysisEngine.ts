@@ -143,11 +143,26 @@ export async function startAnalysis({
   selectedCategory,
   ingredients,
 }: StartAnalysisParams): Promise<AnalysisFunctionResponse> {
-  const execution = await executeAnalysis({
-    action: "start",
-    selectedCategory,
-    ingredients,
-  });
+  let execution;
+
+  try {
+    execution = await executeAnalysis({
+      action: "start",
+      selectedCategory,
+      ingredients,
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (
+      errorMessage.includes("Network") ||
+      errorMessage.includes("Failed") ||
+      errorMessage.includes("offline") ||
+      errorMessage.includes("ECONNREFUSED")
+    ) {
+      throw new Error(`Network error: ${errorMessage}`);
+    }
+    throw err;
+  }
 
   const response = parseFunctionResponse(execution.responseBody);
   if (!response) {
@@ -193,10 +208,25 @@ export async function startAnalysis({
 export async function getAnalysisStatus(
   analysisRequestId: string,
 ): Promise<AnalysisFunctionResponse> {
-  const execution = await executeAnalysis({
-    action: "status",
-    analysisRequestId,
-  });
+  let execution;
+
+  try {
+    execution = await executeAnalysis({
+      action: "status",
+      analysisRequestId,
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (
+      errorMessage.includes("Network") ||
+      errorMessage.includes("Failed") ||
+      errorMessage.includes("offline") ||
+      errorMessage.includes("ECONNREFUSED")
+    ) {
+      throw new Error(`Network error: ${errorMessage}`);
+    }
+    throw err;
+  }
 
   const response = parseFunctionResponse(execution.responseBody);
   if (!response) {
