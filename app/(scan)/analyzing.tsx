@@ -12,9 +12,9 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
+import { useScan } from "@/context/ScanProvider";
 import { getAnalysisStatus, startAnalysis } from "@/libs/analysisEngine";
 import { extractIngredientsFromImage } from "@/libs/ingredientExtraction";
-import { useScan } from "../../context/ScanProvider";
 
 const DUMMY_TIPS = [
   "Over 80% of skincare effectiveness depends on ingredient synergy, not only single compounds.",
@@ -209,9 +209,9 @@ export default function AnalyzingScreen() {
           "Product category is missing. Please choose a category and retry.";
         setAnalysisStatus("failed");
         setAnalysisError(message);
-        setExtractionError(message);
+        setExtractionError(null);
         router.replace({
-          pathname: "/(scan)/error",
+          pathname: "/(analysis)/error",
           params: { errorMessage: message },
         });
         return;
@@ -226,9 +226,9 @@ export default function AnalyzingScreen() {
           "Please provide at least 3 ingredients before analysis.";
         setAnalysisStatus("failed");
         setAnalysisError(message);
-        setExtractionError(message);
+        setExtractionError(null);
         router.replace({
-          pathname: "/(scan)/error",
+          pathname: "/(analysis)/error",
           params: { errorMessage: message },
         });
         return;
@@ -307,9 +307,9 @@ export default function AnalyzingScreen() {
 
         setAnalysisStatus("failed");
         setAnalysisError(message);
-        setExtractionError(message);
+        setExtractionError(null);
         router.replace({
-          pathname: "/(scan)/error",
+          pathname: "/(analysis)/error",
           params: { errorMessage: message },
         });
       }

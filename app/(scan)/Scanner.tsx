@@ -1,30 +1,30 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-  CameraView,
-  useCameraPermissions,
-  type CameraCapturedPicture,
+    CameraView,
+    useCameraPermissions,
+    type CameraCapturedPicture,
 } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+    useWindowDimensions,
 } from "react-native";
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import PrimaryButton from "@/components/PrimaryButton";
-import { useScan } from "../../context/ScanProvider";
+import { useScan } from "@/context/ScanProvider";
 
 const FRAME_CORNER_SIZE = 30;
 const FRAME_CORNER_THICKNESS = 4;

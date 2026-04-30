@@ -18,19 +18,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-type ResultState = "safe" | "neutral" | "bad";
 type IngredientTone = "good" | "neutral" | "bad";
-
-type ThemeConfig = {
-  score: number;
-  badgeText: string;
-  badgeTextColor: string;
-  badgeBackgroundColor: string;
-  accentColor: string;
-  accentSoftColor: string;
-  title: string;
-  description: string;
-};
 
 type IngredientItem = {
   id: string;
@@ -46,124 +34,6 @@ type RecommendationItem = {
   why: string;
   match: string;
   image: any;
-};
-
-// Change this constant to preview each UI look: "safe" | "neutral" | "bad".
-const PREVIEW_STATE: ResultState = "neutral";
-
-const THEME_BY_STATE: Record<ResultState, ThemeConfig> = {
-  safe: {
-    score: 94,
-    badgeText: "Safe",
-    badgeTextColor: "#15803D",
-    badgeBackgroundColor: "#EAFBF1",
-    accentColor: "#136DEC",
-    accentSoftColor: "rgba(19, 109, 236, 0.05)",
-    title: "Excellent for your Oily/Sensitive skin",
-    description:
-      "No irritants detected for your profile. This product aligns perfectly with your skin goals and sensitivity levels.",
-  },
-  neutral: {
-    score: 50,
-    badgeText: "Moderate",
-    badgeTextColor: "#D97706",
-    badgeBackgroundColor: "#FFF7E8",
-    accentColor: "#F59E0B",
-    accentSoftColor: "rgba(251, 191, 36, 0.05)",
-    title: "Not Recommended for your combination skin",
-    description:
-      "No irritants detected for your profile. This product aligns fairly with your skin goals and sensitivity levels.",
-  },
-  bad: {
-    score: 20,
-    badgeText: "Not Safe",
-    badgeTextColor: "#E11D48",
-    badgeBackgroundColor: "#FFF1F5",
-    accentColor: "#E11D48",
-    accentSoftColor: "rgba(225, 29, 72, 0.05)",
-    title: "Not Recommended for your combination skin",
-    description:
-      "This formulation can trigger sensitivity for your profile and may not support your current skin barrier goals.",
-  },
-};
-
-const INGREDIENTS_BY_STATE: Record<ResultState, IngredientItem[]> = {
-  safe: [
-    {
-      id: "niacinamide",
-      name: "Niacinamide (Vitamin B3)",
-      chemicalEffect: "Regulates oil production and minimizes pore appearance.",
-      benefitText:
-        "Benefit: Reduces redness and prevents breakouts for oily skin.",
-      tone: "good",
-    },
-    {
-      id: "hyaluronic",
-      name: "Hyaluronic Acid",
-      chemicalEffect: "Humectant that binds moisture to the skin surface.",
-      benefitText: "Benefit: Deep hydration without the heavy feeling of oils.",
-      tone: "good",
-    },
-    {
-      id: "glycerin",
-      name: "Glycerin",
-      chemicalEffect: "Natural moisturizing factor found in the skin.",
-      benefitText:
-        "Benefit: Generally safe, but can be slightly sticky for some oily types.",
-      tone: "neutral",
-    },
-  ],
-  neutral: [
-    {
-      id: "glycerin",
-      name: "Glycerin",
-      chemicalEffect: "Natural moisturizing factor found in the skin.",
-      benefitText:
-        "Benefit: Generally safe, but can be slightly sticky for some oily types.",
-      tone: "neutral",
-    },
-    {
-      id: "niacinamide",
-      name: "Niacinamide (Vitamin B3)",
-      chemicalEffect: "Regulates oil production and minimizes pore appearance.",
-      benefitText:
-        "Benefit: Reduces redness and prevents breakouts for oily skin.",
-      tone: "good",
-    },
-    {
-      id: "glycerin-2",
-      name: "Glycerin",
-      chemicalEffect: "Natural moisturizing factor found in the skin.",
-      benefitText:
-        "Benefit: Generally safe, but can be slightly sticky for some oily types.",
-      tone: "neutral",
-    },
-  ],
-  bad: [
-    {
-      id: "niacinamide",
-      name: "Niacinamide (Vitamin B3)",
-      chemicalEffect: "Regulates oil production and minimizes pore appearance.",
-      benefitText:
-        "Effects: Reduces redness and prevents breakouts for oily skin.",
-      tone: "bad",
-    },
-    {
-      id: "hyaluronic",
-      name: "Hyaluronic Acid",
-      chemicalEffect: "Humectant that binds moisture to the skin surface.",
-      benefitText: "Effects: Deep hydration without the heavy feeling of oils.",
-      tone: "bad",
-    },
-    {
-      id: "glycerin",
-      name: "Glycerin",
-      chemicalEffect: "Natural moisturizing factor found in the skin.",
-      benefitText:
-        "Benefit: Generally safe, but can be slightly sticky for some oily types.",
-      tone: "neutral",
-    },
-  ],
 };
 
 const RECOMMENDATIONS: RecommendationItem[] = [
@@ -217,40 +87,44 @@ const Results = () => {
   const [showAllIngredients, setShowAllIngredients] = React.useState(false);
   const pathname = usePathname();
   const { bottom: bottomInset } = useSafeAreaInsets();
-  const resolvedState: ResultState =
-    analysisResult?.analysis.state || PREVIEW_STATE;
-  const fallbackTheme = THEME_BY_STATE[resolvedState];
+
+  function trimToParagraphs(text?: string | null, max = 2) {
+    if (!text) return "";
+    const paragraphs = text
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (paragraphs.length <= max) return paragraphs.join("\n\n");
+
+    return paragraphs.slice(0, max).join("\n\n") + "…";
+  }
+
   const theme = {
-    ...fallbackTheme,
-    score: analysisResult?.analysis.score ?? fallbackTheme.score,
-    badgeText: analysisResult?.analysis.badgeText ?? fallbackTheme.badgeText,
-    title: analysisResult?.analysis.title ?? fallbackTheme.title,
-    description:
-      analysisResult?.analysis.description ?? fallbackTheme.description,
+    score: analysisResult?.analysis.score ?? 0,
+    badgeText: analysisResult?.analysis.badgeText ?? "",
+    badgeTextColor: "#111827",
+    badgeBackgroundColor: "#FFFFFF",
+    accentColor: "#136DEC",
+    accentSoftColor: "transparent",
+    title: trimToParagraphs(analysisResult?.analysis.title ?? "", 2),
+    description: trimToParagraphs(
+      analysisResult?.analysis.description ?? "",
+      3,
+    ),
   };
+
   const ingredientItems: IngredientItem[] =
-    analysisResult?.ingredients?.length
-      ? analysisResult.ingredients.map((item) => ({
-          id: item.id,
-          name: item.name,
-          chemicalEffect: item.chemicalEffect,
-          benefitText: item.benefitText,
-          tone: item.tone,
-        }))
-      : INGREDIENTS_BY_STATE[resolvedState];
-  const recommendationItems: RecommendationItem[] =
-    analysisResult?.recommendations?.length
-      ? analysisResult.recommendations.map((recommendation, index) => ({
-          id: recommendation.id,
-          productName: recommendation.productName,
-          why: recommendation.why,
-          match: recommendation.match,
-          image:
-            index % 2 === 0
-              ? require("../../assets/images/Verdant Botanics.png")
-              : require("../../assets/images/Mist & Clay.png"),
-        }))
-      : RECOMMENDATIONS;
+    analysisResult?.ingredients?.map((item) => ({
+      id: item.id,
+      name: item.name,
+      chemicalEffect: item.chemicalEffect,
+      benefitText: item.benefitText,
+      tone: item.tone,
+    })) ?? [];
+
+  const recommendationItems: RecommendationItem[] = RECOMMENDATIONS;
+
   const COLLAPSED_INGREDIENT_COUNT = 2;
   const hasHiddenIngredients =
     ingredientItems.length > COLLAPSED_INGREDIENT_COUNT;
@@ -330,7 +204,7 @@ const Results = () => {
 
             <View className="mt-3 items-center">
               <View
-                className="h-48 w-48 items-center justify-center rounded-full border-[8px]"
+                className="h-48 w-48 items-center justify-center rounded-full border-[10px]"
                 style={{ borderColor: theme.accentColor }}
               >
                 <Text
@@ -342,7 +216,7 @@ const Results = () => {
               </View>
             </View>
 
-            <Text className="mt-4 text-center font-publicSansBold text-[32px] leading-[40px] text-[#111827]">
+            <Text className="mt-4 text-center font-publicSansBold text-[35px] leading-[40px] text-[#111827]">
               {theme.title}
             </Text>
 
@@ -372,12 +246,11 @@ const Results = () => {
               </Text>
             </View>
 
-            <Text className="mt-3 font-publicSansRegular text-lg leading-7 text-[#475569]">
-              Based on your Oily/Sensitive skin profile, this product&apos;s
-              pH-balanced formula prevents excess sebum without disrupting your
-              moisture barrier. The inclusion of soothing agents actively
-              counteracts potential sensitivity triggers.
-            </Text>
+            {analysisResult?.personalizedAnalysis ? (
+              <Text className="mt-3 font-publicSansRegular text-lg leading-7 text-[#475569]">
+                {analysisResult.personalizedAnalysis}
+              </Text>
+            ) : null}
 
             <Pressable
               className="mt-5 mb-2 self-start"

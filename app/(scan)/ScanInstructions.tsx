@@ -4,7 +4,7 @@ import { ComponentProps, useCallback } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useScan } from "../../context/ScanProvider";
+import { useScan } from "@/context/ScanProvider";
 
 type TipConfig = {
   title: string;

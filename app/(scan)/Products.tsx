@@ -11,8 +11,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useScan } from "../../context/ScanProvider";
 import PrimaryButton from "@/components/PrimaryButton";
+import { useScan } from "@/context/ScanProvider";
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_CATEGORY_DETAILS,
@@ -113,9 +113,12 @@ export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const { selectedCategory, setSelectedCategory } = useScan();
 
-  const handleSelectCategory = useCallback((category: ProductCategory) => {
-    setSelectedCategory(category);
-  }, [setSelectedCategory]);
+  const handleSelectCategory = useCallback(
+    (category: ProductCategory) => {
+      setSelectedCategory(category);
+    },
+    [setSelectedCategory],
+  );
 
   const filteredCategories = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();

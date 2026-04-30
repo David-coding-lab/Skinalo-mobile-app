@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useScan } from "../../context/ScanProvider";
+import { useScan } from "@/context/ScanProvider";
 
 const FRAME_CORNER_SIZE = 30;
 const FRAME_CORNER_THICKNESS = 4;

@@ -39,6 +39,7 @@ export type AnalysisResultPayload = {
         why: string;
         match: string;
       }[];
+  personalizedAnalysis?: string;
 };
 
 type BaseResponse = {

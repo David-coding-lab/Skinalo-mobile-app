@@ -2,21 +2,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-  BackHandler,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
+    BackHandler,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import PrimaryButton from "@/components/PrimaryButton";
-import { useScan } from "../../context/ScanProvider";
+import { useScan } from "@/context/ScanProvider";
+import {
+    PRODUCT_CATEGORIES,
+    PRODUCT_CATEGORY_DETAILS,
+} from "@/types/productCategory";
 
 function getMutationMessage(reason?: "EMPTY" | "DUPLICATE" | "OUT_OF_RANGE") {
   if (reason === "EMPTY") {
@@ -33,13 +37,15 @@ function getMutationMessage(reason?: "EMPTY" | "DUPLICATE" | "OUT_OF_RANGE") {
 export default function ManualInput() {
   const {
     selectedCategory,
+    setSelectedCategory,
     extractedIngredients,
     addIngredient,
     updateIngredient,
     removeIngredient,
     clearCapturedImage,
   } = useScan();
-  const [newIngredient, setNewIngredient] = useState("");  
+  const [newIngredient, setNewIngredient] = useState("");
+  const [showCategoryList, setShowCategoryList] = useState(false);
   const [newIngredientNotice, setNewIngredientNotice] = useState<string | null>(
     null,
   );
@@ -105,6 +111,17 @@ export default function ManualInput() {
 
     return `${extractedIngredients.length} items`;
   }, [extractedIngredients.length]);
+
+  const selectedCategoryDetails = selectedCategory
+    ? PRODUCT_CATEGORY_DETAILS[selectedCategory]
+    : null;
+
+  const handleChangeCategory = (
+    category: (typeof PRODUCT_CATEGORIES)[number],
+  ) => {
+    setSelectedCategory(category);
+    setShowCategoryList(false);
+  };
 
   const beginEdit = (index: number, ingredient: string) => {
     setEditingIndex(index);
@@ -230,7 +247,7 @@ export default function ManualInput() {
             </View>
 
             <View className="mt-6 rounded-2xl border border-[#D6EADB] bg-[#F2FBF5] px-4 py-4">
-              <View className="flex-row items-center gap-3">
+              <View className="flex-row items-start gap-3">
                 <View className="h-11 w-11 items-center justify-center rounded-full bg-[#DCFCE7]">
                   <Ionicons name="leaf-outline" size={21} color="#166534" />
                 </View>
@@ -242,14 +259,99 @@ export default function ManualInput() {
                   <Text className="mt-1 font-publicSansBold text-xl text-[#0F172A]">
                     {selectedCategory || "General skincare"}
                   </Text>
-                </View>
-
-                <View className="rounded-full border border-[#CFE4D5] bg-white px-3 py-1">
-                  <Text className="font-publicSansSemiBold text-xs text-[#166534]">
-                    Active
+                  <Text className="mt-1 font-publicSansRegular text-sm text-[#5C7C6D]">
+                    {selectedCategoryDetails?.subtitle ||
+                      "Choose the closest match for this product."}
                   </Text>
                 </View>
+
+                <Pressable
+                  onPress={() => setShowCategoryList((previous) => !previous)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change selected category"
+                  className="flex-row items-center gap-1 rounded-full bg-[#2D6A4F] px-4 py-2"
+                >
+                  <Text className="font-publicSansSemiBold text-sm text-white">
+                    Change
+                  </Text>
+                  <Ionicons
+                    name={
+                      showCategoryList
+                        ? "chevron-up-outline"
+                        : "chevron-down-outline"
+                    }
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                </Pressable>
               </View>
+
+              {showCategoryList ? (
+                <View className="mt-4 rounded-2xl border border-[#D8E7DD] bg-white p-3">
+                  <Text className="px-1 font-publicSansSemiBold text-xs tracking-[0.6px] text-[#64748B]">
+                    CHOOSE A CATEGORY
+                  </Text>
+
+                  <View className="mt-3 gap-2">
+                    {PRODUCT_CATEGORIES.map((category) => {
+                      const details = PRODUCT_CATEGORY_DETAILS[category];
+                      const isSelected = selectedCategory === category;
+
+                      return (
+                        <Pressable
+                          key={category}
+                          onPress={() => handleChangeCategory(category)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: isSelected }}
+                          className="flex-row items-center gap-3 rounded-2xl border px-3 py-3"
+                          style={{
+                            borderColor: isSelected ? "#2D6A4F" : "#E2E8F0",
+                            backgroundColor: isSelected ? "#F2FBF5" : "#FFFFFF",
+                          }}
+                        >
+                          <View
+                            className="h-10 w-10 items-center justify-center rounded-xl"
+                            style={{
+                              backgroundColor: isSelected
+                                ? "#2D6A4F"
+                                : "#EEF2F7",
+                            }}
+                          >
+                            <Ionicons
+                              name={details.iconName}
+                              size={18}
+                              color={isSelected ? "#FFFFFF" : "#2D6A4F"}
+                            />
+                          </View>
+
+                          <View className="flex-1">
+                            <Text className="font-publicSansSemiBold text-[15px] text-[#0F172A]">
+                              {category}
+                            </Text>
+                            <Text className="mt-0.5 font-publicSansRegular text-sm text-[#64748B]">
+                              {details.subtitle}
+                            </Text>
+                          </View>
+
+                          {isSelected ? (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={20}
+                              color="#2D6A4F"
+                            />
+                          ) : (
+                            <Ionicons
+                              name="ellipse-outline"
+                              size={18}
+                              color="#CBD5E1"
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
             </View>
 
             <View className="mt-5 rounded-2xl bg-[#F8FAFC] px-4 py-4">
@@ -424,6 +526,7 @@ export default function ManualInput() {
             <PrimaryButton
               text="Analyze Ingredients"
               callBack={() => {
+                setShowCategoryList(false);
                 Keyboard.dismiss();
 
                 if (!selectedCategory) {
