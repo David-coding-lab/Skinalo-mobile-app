@@ -100,11 +100,26 @@ const Results = () => {
     return paragraphs.slice(0, max).join("\n\n") + "…";
   }
 
+  const badgeMetaMap: Record<
+    string,
+    { textColor: string; backgroundColor: string }
+  > = {
+    Safe: { textColor: "#FFFFFF", backgroundColor: "#136DEC" },
+    Moderate: { textColor: "#B45309", backgroundColor: "#FFF7E8" },
+    "Not Safe": { textColor: "#E11D48", backgroundColor: "#FFF1F5" },
+  };
+
+  const badgeKey = analysisResult?.analysis.badgeText ?? "";
+  const badgeMeta = badgeMetaMap[badgeKey] ?? {
+    textColor: "#111827",
+    backgroundColor: "#FFFFFF",
+  };
+
   const theme = {
     score: analysisResult?.analysis.score ?? 0,
-    badgeText: analysisResult?.analysis.badgeText ?? "",
-    badgeTextColor: "#111827",
-    badgeBackgroundColor: "#FFFFFF",
+    badgeText: badgeKey,
+    badgeTextColor: badgeMeta.textColor,
+    badgeBackgroundColor: badgeMeta.backgroundColor,
     accentColor: "#136DEC",
     accentSoftColor: "transparent",
     title: trimToParagraphs(analysisResult?.analysis.title ?? "", 2),
@@ -314,7 +329,7 @@ const Results = () => {
                     />
                   </View>
 
-                  <Text className="mt-1 font-publicSansRegular text-sm leading-5 text-[#94A3B8]">
+                  <Text className="mt-1 font-publicSansRegular text-[13px] leading-5 text-[#94A3B8]">
                     Chemical Effect: {item.chemicalEffect}
                   </Text>
 
@@ -362,7 +377,7 @@ const Results = () => {
                         />
                       </View>
 
-                      <Text className="mt-1 font-publicSansRegular text-sm leading-5 text-[#94A3B8]">
+                      <Text className="mt-1 font-publicSansRegular text-[13px] leading-5 text-[#94A3B8]">
                         Chemical Effect: {item.chemicalEffect}
                       </Text>
 
