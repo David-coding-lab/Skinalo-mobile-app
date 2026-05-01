@@ -13,6 +13,7 @@ const ENV = {
   ANALYSIS_REQUESTS_TABLE_ID: process.env.ANALYSIS_REQUESTS_TABLE_ID,
   ANALYSIS_CACHE_TABLE_ID: process.env.ANALYSIS_CACHE_TABLE_ID,
   ANALYSIS_EVENTS_TABLE_ID: process.env.ANALYSIS_EVENTS_TABLE_ID,
+  SYSTEM_PROMPTS_TABLE_ID: process.env.SYSTEM_PROMPTS_TABLE_ID,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   ANALYSIS_MODEL: process.env.ANALYSIS_MODEL,
   ANALYSIS_MODEL_VERSION: process.env.ANALYSIS_MODEL_VERSION,
@@ -399,6 +400,48 @@ async function getUserProfile({ endpoint, projectId, apiKey, userId }) {
     primaryGoal: prefs.primaryGoal || null,
     skinTone: prefs.skinTone || null,
   };
+}
+
+async function fetchActiveSystemPrompt({
+  endpoint,
+  projectId,
+  apiKey,
+  databaseId,
+  systemPromptsTableId,
+  log,
+}) {
+  try {
+    log("Fetching active system prompt from database...");
+    const rows = await listRows({
+      endpoint,
+      projectId,
+      apiKey,
+      databaseId,
+      tableId: systemPromptsTableId,
+      queries: [`equal("active", [true])`, "limit(1)"],
+    });
+
+    if (!rows || rows.length === 0) {
+      log("WARNING: No active system prompt found in database");
+      return null;
+    }
+
+    const promptRow = rows[0];
+    const prompt = promptRow?.Prompt || promptRow?.prompt;
+
+    if (!prompt || typeof prompt !== "string") {
+      log("WARNING: Active prompt row missing Prompt field");
+      return null;
+    }
+
+    log("Active system prompt loaded from database successfully");
+    return prompt.trim();
+  } catch (err) {
+    log(
+      `ERROR fetching active system prompt from database: ${err?.message || err}`,
+    );
+    return null;
+  }
 }
 
 async function listRows({
@@ -1270,7 +1313,11 @@ export default async ({ req, res, log, error }) => {
   const modelName = getEnv("ANALYSIS_MODEL", DEFAULT_MODEL);
   const modelVersion = getEnv("ANALYSIS_MODEL_VERSION");
   const promptVersion = getEnv("ANALYSIS_PROMPT_VERSION");
-  const systemPrompt = getEnv("ANALYSIS_SYSTEM_PROMPT");
+  const systemPromptsTableId = getEnv(
+    "SYSTEM_PROMPTS_TABLE_ID",
+    "system_prompts",
+  );
+  const envFallbackPrompt = getEnv("ANALYSIS_SYSTEM_PROMPT");
 
   log(
     `Resolved analysis IDs: database=${databaseId || "<empty>"}, requests=${requestsTableId || "<empty>"}, cache=${cacheTableId || "<empty>"}, events=${eventsTableId || "<empty>"}`,
@@ -1317,18 +1364,6 @@ export default async ({ req, res, log, error }) => {
     );
   }
 
-  if (!systemPrompt) {
-    log("ERROR: Missing system prompt");
-    return res.json(
-      {
-        ok: false,
-        errorCode: "PROMPT_NOT_CONFIGURED",
-        error: "ANALYSIS_SYSTEM_PROMPT is required for analysis execution.",
-      },
-      500,
-    );
-  }
-
   const sessionUserId = getSessionUserId(req.headers);
   log(`Session User ID: ${sessionUserId || "MISSING"}`);
 
@@ -1365,6 +1400,33 @@ export default async ({ req, res, log, error }) => {
         error:
           err?.message || "Configured analysis database resources are invalid.",
         details: err?.details || null,
+      },
+      500,
+    );
+  }
+
+  let systemPrompt = await fetchActiveSystemPrompt({
+    endpoint,
+    projectId,
+    apiKey,
+    databaseId,
+    systemPromptsTableId,
+    log,
+  });
+
+  if (!systemPrompt) {
+    log("INFO: No active prompt in database, falling back to env variable");
+    systemPrompt = envFallbackPrompt;
+  }
+
+  if (!systemPrompt) {
+    log("ERROR: Missing system prompt from both database and env");
+    return res.json(
+      {
+        ok: false,
+        errorCode: "PROMPT_NOT_CONFIGURED",
+        error:
+          "No active system prompt found in database. Ensure SYSTEM_PROMPTS_TABLE_ID is configured and at least one row has active=true.",
       },
       500,
     );
