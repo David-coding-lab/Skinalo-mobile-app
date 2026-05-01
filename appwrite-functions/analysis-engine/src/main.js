@@ -129,6 +129,15 @@ function parseJsonSafe(value) {
   }
 }
 
+function isQuerySyntaxError(err) {
+  if (!err || typeof err.message !== "string") {
+    return false;
+  }
+
+  const message = err.message.toLowerCase();
+  return message.includes("invalid query") && message.includes("syntax");
+}
+
 function stableSortObjectKeys(value) {
   if (Array.isArray(value)) {
     return value.map((item) => stableSortObjectKeys(item));
@@ -410,38 +419,94 @@ async function fetchActiveSystemPrompt({
   systemPromptsTableId,
   log,
 }) {
+  const extractPromptConfig = (row) => {
+    if (!row || typeof row !== "object") {
+      return null;
+    }
+
+    const systemPrompt = row.Prompt || row.prompt || "";
+    const modelName = row.modelName || row.model || null;
+    const promptVersion = row.promptVersion || row.version || null;
+
+    if (typeof systemPrompt !== "string" || !systemPrompt.trim()) {
+      return null;
+    }
+
+    return {
+      systemPrompt: systemPrompt.trim(),
+      modelName:
+        typeof modelName === "string" && modelName.trim()
+          ? modelName.trim()
+          : null,
+      promptVersion:
+        typeof promptVersion === "string" && promptVersion.trim()
+          ? promptVersion.trim()
+          : null,
+    };
+  };
+
+  log("Fetching active prompt config from database...");
+
+  const queryAttempts = [
+    [`equal("active", [true])`, "limit(1)"],
+    [`equal("active", true)`, "limit(1)"],
+    [`equal("active", "true")`, "limit(1)"],
+  ];
+
+  for (const queries of queryAttempts) {
+    try {
+      const rows = await listRows({
+        endpoint,
+        projectId,
+        apiKey,
+        databaseId,
+        tableId: systemPromptsTableId,
+        queries,
+      });
+
+      if (Array.isArray(rows) && rows.length > 0) {
+        const activeConfig = extractPromptConfig(rows[0]);
+        if (activeConfig) {
+          log("Active prompt config loaded using filtered query.");
+          return activeConfig;
+        }
+      }
+    } catch (err) {
+      if (!isQuerySyntaxError(err)) {
+        log(
+          `ERROR fetching active prompt config with filtered query: ${err?.message || err}`,
+        );
+      }
+    }
+  }
+
   try {
-    log("Fetching active system prompt from database...");
     const rows = await listRows({
       endpoint,
       projectId,
       apiKey,
       databaseId,
       tableId: systemPromptsTableId,
-      queries: [`equal("active", [true])`, "limit(1)"],
+      queries: ["limit(100)"],
     });
 
-    if (!rows || rows.length === 0) {
-      log("WARNING: No active system prompt found in database");
-      return null;
+    const activeRow = (rows || []).find((row) => {
+      const active = row?.active;
+      return active === true || active === "true" || active === 1;
+    });
+
+    const activeConfig = extractPromptConfig(activeRow);
+    if (activeConfig) {
+      log("Active prompt config loaded using local active filter fallback.");
+      return activeConfig;
     }
-
-    const promptRow = rows[0];
-    const prompt = promptRow?.Prompt || promptRow?.prompt;
-
-    if (!prompt || typeof prompt !== "string") {
-      log("WARNING: Active prompt row missing Prompt field");
-      return null;
-    }
-
-    log("Active system prompt loaded from database successfully");
-    return prompt.trim();
   } catch (err) {
     log(
-      `ERROR fetching active system prompt from database: ${err?.message || err}`,
+      `ERROR fetching prompt config via fallback scan: ${err?.message || err}`,
     );
-    return null;
   }
+
+  return null;
 }
 
 async function listRows({
@@ -755,21 +820,40 @@ async function fetchCacheByCompositeKey({
   modelVersion,
   promptVersion,
 }) {
-  const rows = await listRows({
-    endpoint,
-    projectId,
-    apiKey,
-    databaseId,
-    tableId: cacheTableId,
-    queries: [
+  const queryAttempts = [
+    [
       `equal("compositeKey", ["${compositeKey}"])`,
       `equal("modelVersion", ["${modelVersion}"])`,
       `equal("promptVersion", ["${promptVersion}"])`,
       "limit(1)",
     ],
-  });
+    [
+      `equal("compositeKey", "${compositeKey}")`,
+      `equal("modelVersion", "${modelVersion}")`,
+      `equal("promptVersion", "${promptVersion}")`,
+      "limit(1)",
+    ],
+  ];
 
-  return rows[0] || null;
+  for (const queries of queryAttempts) {
+    try {
+      const rows = await listRows({
+        endpoint,
+        projectId,
+        apiKey,
+        databaseId,
+        tableId: cacheTableId,
+        queries,
+      });
+      return rows[0] || null;
+    } catch (err) {
+      if (!isQuerySyntaxError(err)) {
+        throw err;
+      }
+    }
+  }
+
+  return null;
 }
 
 async function saveCacheRow({
@@ -1310,12 +1394,12 @@ export default async ({ req, res, log, error }) => {
   const cacheTableId = getEnv("ANALYSIS_CACHE_TABLE_ID", "analysis_cache");
   const eventsTableId = getEnv("ANALYSIS_EVENTS_TABLE_ID", "analysis_events");
   const geminiApiKey = getEnv("GEMINI_API_KEY");
-  const modelName = getEnv("ANALYSIS_MODEL", DEFAULT_MODEL);
+  const envModelName = getEnv("ANALYSIS_MODEL", DEFAULT_MODEL);
   const modelVersion = getEnv("ANALYSIS_MODEL_VERSION");
-  const promptVersion = getEnv("ANALYSIS_PROMPT_VERSION");
+  const envPromptVersion = getEnv("ANALYSIS_PROMPT_VERSION");
   const systemPromptsTableId = getEnv(
     "SYSTEM_PROMPTS_TABLE_ID",
-    "system_prompts",
+    "systemPrompt",
   );
   const envFallbackPrompt = getEnv("ANALYSIS_SYSTEM_PROMPT");
 
@@ -1349,16 +1433,58 @@ export default async ({ req, res, log, error }) => {
   }
 
   log(
-    `GEMINI Check: key=${!!geminiApiKey}, modelVer=${!!modelVersion}, promptVer=${!!promptVersion}`,
+    `GEMINI Check: key=${!!geminiApiKey}, modelVer=${!!modelVersion}, envPromptVer=${!!envPromptVersion}`,
   );
 
-  if (!geminiApiKey || !modelVersion || !promptVersion) {
+  if (!geminiApiKey || !modelVersion) {
     log("ERROR: Missing Gemini environment variables");
     return res.json(
       {
         ok: false,
         errorCode: "SERVER_MISCONFIGURED",
         error: "Analysis model environment is incomplete.",
+      },
+      500,
+    );
+  }
+
+  const activePromptConfig = await fetchActiveSystemPrompt({
+    endpoint,
+    projectId,
+    apiKey,
+    databaseId,
+    systemPromptsTableId,
+    log,
+  });
+
+  const resolvedSystemPrompt =
+    activePromptConfig?.systemPrompt || envFallbackPrompt || "";
+  const resolvedModelName =
+    activePromptConfig?.modelName || envModelName || DEFAULT_MODEL;
+  const resolvedPromptVersion =
+    activePromptConfig?.promptVersion || envPromptVersion || "";
+
+  if (!resolvedSystemPrompt) {
+    log("ERROR: Missing system prompt from both database and env");
+    return res.json(
+      {
+        ok: false,
+        errorCode: "PROMPT_NOT_CONFIGURED",
+        error:
+          "No active system prompt found in database. Ensure SYSTEM_PROMPTS_TABLE_ID is configured and at least one row has active=true.",
+      },
+      500,
+    );
+  }
+
+  if (!resolvedPromptVersion) {
+    log("ERROR: Missing prompt version from both database and env");
+    return res.json(
+      {
+        ok: false,
+        errorCode: "SERVER_MISCONFIGURED",
+        error:
+          "Prompt version is missing from both active prompt row and ANALYSIS_PROMPT_VERSION.",
       },
       500,
     );
@@ -1405,43 +1531,16 @@ export default async ({ req, res, log, error }) => {
     );
   }
 
-  let systemPrompt = await fetchActiveSystemPrompt({
-    endpoint,
-    projectId,
-    apiKey,
-    databaseId,
-    systemPromptsTableId,
-    log,
-  });
-
-  if (!systemPrompt) {
-    log("INFO: No active prompt in database, falling back to env variable");
-    systemPrompt = envFallbackPrompt;
-  }
-
-  if (!systemPrompt) {
-    log("ERROR: Missing system prompt from both database and env");
-    return res.json(
-      {
-        ok: false,
-        errorCode: "PROMPT_NOT_CONFIGURED",
-        error:
-          "No active system prompt found in database. Ensure SYSTEM_PROMPTS_TABLE_ID is configured and at least one row has active=true.",
-      },
-      500,
-    );
-  }
-
   const config = {
     databaseId,
     requestsTableId,
     cacheTableId,
     eventsTableId,
     geminiApiKey,
-    modelName,
+    modelName: resolvedModelName,
     modelVersion,
-    promptVersion,
-    systemPrompt,
+    promptVersion: resolvedPromptVersion,
+    systemPrompt: resolvedSystemPrompt,
   };
 
   let payload;
