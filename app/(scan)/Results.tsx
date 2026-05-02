@@ -102,17 +102,39 @@ const Results = () => {
 
   const badgeMetaMap: Record<
     string,
-    { textColor: string; backgroundColor: string }
+    {
+      textColor: string;
+      backgroundColor: string;
+      accentColor: string;
+      accentSoftColor: string;
+    }
   > = {
-    Safe: { textColor: "#FFFFFF", backgroundColor: "#136DEC" },
-    Moderate: { textColor: "#B45309", backgroundColor: "#FFF7E8" },
-    "Not Safe": { textColor: "#E11D48", backgroundColor: "#FFF1F5" },
+    Safe: {
+      textColor: "#FFFFFF",
+      backgroundColor: "#136DEC",
+      accentColor: "#136DEC",
+      accentSoftColor: "rgba(19, 109, 236, 0.05)",
+    },
+    Moderate: {
+      textColor: "#B45309",
+      backgroundColor: "#FFF7E8",
+      accentColor: "#D97706",
+      accentSoftColor: "rgba(217, 119, 6, 0.05)",
+    },
+    "Not Safe": {
+      textColor: "#E11D48",
+      backgroundColor: "#FFF1F5",
+      accentColor: "#E11D48",
+      accentSoftColor: "rgba(225, 29, 72, 0.05)",
+    },
   };
 
   const badgeKey = analysisResult?.analysis.badgeText ?? "";
   const badgeMeta = badgeMetaMap[badgeKey] ?? {
     textColor: "#111827",
     backgroundColor: "#FFFFFF",
+    accentColor: "#136DEC",
+    accentSoftColor: "transparent",
   };
 
   const theme = {
@@ -120,8 +142,8 @@ const Results = () => {
     badgeText: badgeKey,
     badgeTextColor: badgeMeta.textColor,
     badgeBackgroundColor: badgeMeta.backgroundColor,
-    accentColor: "#136DEC",
-    accentSoftColor: "transparent",
+    accentColor: badgeMeta.accentColor,
+    accentSoftColor: badgeMeta.accentSoftColor,
     title: trimToParagraphs(analysisResult?.analysis.title ?? "", 2),
     description: trimToParagraphs(
       analysisResult?.analysis.description ?? "",

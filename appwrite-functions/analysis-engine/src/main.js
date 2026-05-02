@@ -481,6 +481,13 @@ async function fetchActiveSystemPrompt({
   log("Fetching active prompt config from database...");
   log(`System Prompts Table ID: ${systemPromptsTableId}`);
 
+  const findActiveRowLocally = (rows) => {
+    return (rows || []).find((row) => {
+      const active = row?.active;
+      return active === true || active === "true" || active === 1;
+    });
+  };
+
   const queryAttempts = [
     [`equal("active", [true])`, "limit(1)"],
     [`equal("active", true)`, "limit(1)"],
@@ -525,22 +532,19 @@ async function fetchActiveSystemPrompt({
     "All filtered query attempts failed. Attempting fallback scan with limit(100)...",
   );
   try {
+    // Final fallback without query filters for environments where query parsing is strict.
     const rows = await listRows({
       endpoint,
       projectId,
       apiKey,
       databaseId,
       tableId: systemPromptsTableId,
-      queries: ["limit(100)"],
     });
 
-    log(`Fallback query succeeded. Total rows returned: ${rows.length}`);
+    log(`Fallback scan succeeded. Total rows returned: ${rows.length}`);
     log(`Raw rows sample: ${JSON.stringify(rows.slice(0, 2))}`);
 
-    const activeRow = (rows || []).find((row) => {
-      const active = row?.active;
-      return active === true || active === "true" || active === 1;
-    });
+    const activeRow = findActiveRowLocally(rows);
 
     if (activeRow) {
       log(`Found active row: ${JSON.stringify(activeRow)}`);
@@ -913,7 +917,23 @@ async function fetchCacheByCompositeKey({
     }
   }
 
-  return null;
+  // Fallback to an unfiltered scan if this Appwrite environment rejects query syntax.
+  const rows = await listRows({
+    endpoint,
+    projectId,
+    apiKey,
+    databaseId,
+    tableId: cacheTableId,
+  });
+
+  return (
+    (rows || []).find(
+      (row) =>
+        row?.compositeKey === compositeKey &&
+        row?.modelVersion === modelVersion &&
+        row?.promptVersion === promptVersion,
+    ) || null
+  );
 }
 
 async function saveCacheRow({
