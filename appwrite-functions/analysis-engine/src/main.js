@@ -376,6 +376,39 @@ async function verifyAnalysisResources({
   }
 }
 
+async function verifySystemPromptsTable({
+  endpoint,
+  projectId,
+  apiKey,
+  databaseId,
+  systemPromptsTableId,
+  log,
+}) {
+  try {
+    log(`Verifying system prompts table: ${systemPromptsTableId}`);
+    await getTable({
+      endpoint,
+      projectId,
+      apiKey,
+      databaseId,
+      tableId: systemPromptsTableId,
+    });
+    log("✓ System prompts table verified successfully.");
+    return true;
+  } catch (err) {
+    if (err?.statusCode === 404) {
+      log(
+        `⚠ System prompts table not found (${systemPromptsTableId}). Will rely on environment variables.`,
+      );
+      return false;
+    }
+    log(
+      `⚠ Could not verify system prompts table: ${err?.message || err}. Status: ${err?.statusCode || "unknown"}`,
+    );
+    return false;
+  }
+}
+
 async function getUserProfile({ endpoint, projectId, apiKey, userId }) {
   const payload = await appwriteRequest({
     endpoint,
@@ -446,6 +479,7 @@ async function fetchActiveSystemPrompt({
   };
 
   log("Fetching active prompt config from database...");
+  log(`System Prompts Table ID: ${systemPromptsTableId}`);
 
   const queryAttempts = [
     [`equal("active", [true])`, "limit(1)"],
@@ -453,7 +487,9 @@ async function fetchActiveSystemPrompt({
     [`equal("active", "true")`, "limit(1)"],
   ];
 
-  for (const queries of queryAttempts) {
+  for (let i = 0; i < queryAttempts.length; i += 1) {
+    const queries = queryAttempts[i];
+    log(`Query attempt ${i + 1}: ${JSON.stringify(queries)}`);
     try {
       const rows = await listRows({
         endpoint,
@@ -464,6 +500,7 @@ async function fetchActiveSystemPrompt({
         queries,
       });
 
+      log(`Query attempt ${i + 1} succeeded. Rows returned: ${rows.length}`);
       if (Array.isArray(rows) && rows.length > 0) {
         const activeConfig = extractPromptConfig(rows[0]);
         if (activeConfig) {
@@ -472,14 +509,21 @@ async function fetchActiveSystemPrompt({
         }
       }
     } catch (err) {
+      const statusCode = err?.statusCode || "unknown";
+      const payload = err?.payload ? JSON.stringify(err.payload) : "no payload";
+      log(
+        `Query attempt ${i + 1} failed (status ${statusCode}): ${err?.message || err}`,
+      );
+      log(`Full error payload: ${payload}`);
       if (!isQuerySyntaxError(err)) {
-        log(
-          `ERROR fetching active prompt config with filtered query: ${err?.message || err}`,
-        );
+        log(`ERROR fetching active prompt config: ${err?.message || err}`);
       }
     }
   }
 
+  log(
+    "All filtered query attempts failed. Attempting fallback scan with limit(100)...",
+  );
   try {
     const rows = await listRows({
       endpoint,
@@ -490,22 +534,34 @@ async function fetchActiveSystemPrompt({
       queries: ["limit(100)"],
     });
 
+    log(`Fallback query succeeded. Total rows returned: ${rows.length}`);
+    log(`Raw rows sample: ${JSON.stringify(rows.slice(0, 2))}`);
+
     const activeRow = (rows || []).find((row) => {
       const active = row?.active;
       return active === true || active === "true" || active === 1;
     });
 
-    const activeConfig = extractPromptConfig(activeRow);
-    if (activeConfig) {
-      log("Active prompt config loaded using local active filter fallback.");
-      return activeConfig;
+    if (activeRow) {
+      log(`Found active row: ${JSON.stringify(activeRow)}`);
+      const activeConfig = extractPromptConfig(activeRow);
+      if (activeConfig) {
+        log("Active prompt config loaded using local active filter fallback.");
+        return activeConfig;
+      }
+    } else {
+      log(`No active row found. Checked ${rows.length} rows for active field.`);
     }
   } catch (err) {
-    log(
-      `ERROR fetching prompt config via fallback scan: ${err?.message || err}`,
-    );
+    const statusCode = err?.statusCode || "unknown";
+    const payload = err?.payload ? JSON.stringify(err.payload) : "no payload";
+    log(`Fallback scan failed (status ${statusCode}): ${err?.message || err}`);
+    log(`Full error payload: ${payload}`);
   }
 
+  log(
+    "WARNING: Could not fetch prompt config from database. Will use environment variables.",
+  );
   return null;
 }
 
@@ -520,6 +576,10 @@ async function listRows({
   const path =
     `/databases/${encodeTablePath(databaseId)}/collections/${encodeTablePath(tableId)}/documents` +
     buildQueryString(queries || []);
+
+  const fullUrl = normalizeAppwriteEndpoint(endpoint) + path;
+  console.log(`[DEBUG] listRows request: ${fullUrl}`);
+  console.log(`[DEBUG] Query params: ${JSON.stringify(queries)}`);
 
   const payload = await appwriteRequest({
     endpoint,
@@ -1447,6 +1507,16 @@ export default async ({ req, res, log, error }) => {
       500,
     );
   }
+
+  // Verify system prompts table exists and is accessible
+  await verifySystemPromptsTable({
+    endpoint,
+    projectId,
+    apiKey,
+    databaseId,
+    systemPromptsTableId,
+    log,
+  });
 
   const activePromptConfig = await fetchActiveSystemPrompt({
     endpoint,
